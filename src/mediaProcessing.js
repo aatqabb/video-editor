@@ -30,6 +30,48 @@ function once(element, eventName, errorName = 'error') {
   })
 }
 
+function createThumbnailSync(video, targetWidth, targetHeight) {
+  const canvas = document.createElement('canvas')
+  canvas.width = targetWidth
+  canvas.height = targetHeight
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return ''
+  ctx.drawImage(video, 0, 0, targetWidth, targetHeight)
+  return canvas.toDataURL('image/jpeg', 0.76)
+}
+
+function createThumbnailInWorker(video, targetWidth, targetHeight) {
+  if (
+    typeof Worker === 'undefined' ||
+    typeof createImageBitmap === 'undefined' ||
+    typeof OffscreenCanvas === 'undefined'
+  ) {
+    return Promise.resolve(createThumbnailSync(video, targetWidth, targetHeight))
+  }
+
+  return createImageBitmap(video).then((bitmap) => new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./thumbnailWorker.js', import.meta.url), { type: 'module' })
+    let settled = false
+    const timeout = window.setTimeout(() => finish(new Error('Thumbnail worker timed out')), 30000)
+
+    const finish = (error, thumbnail = '') => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timeout)
+      worker.terminate()
+      if (error) reject(error)
+      else resolve(thumbnail)
+    }
+
+    worker.onmessage = (event) => {
+      if (event.data?.error) return finish(new Error(event.data.error))
+      finish(null, typeof event.data?.thumbnail === 'string' ? event.data.thumbnail : '')
+    }
+    worker.onerror = () => finish(new Error('Thumbnail worker failed'))
+    worker.postMessage({ bitmap, width: targetWidth, height: targetHeight }, [bitmap])
+  }))
+}
+
 async function processVideo(file, url) {
   const video = document.createElement('video')
   video.preload = 'metadata'
@@ -49,13 +91,10 @@ async function processVideo(file, url) {
   if (video.videoWidth && video.videoHeight) {
     const targetWidth = 320
     const targetHeight = Math.max(80, Math.round(targetWidth * video.videoHeight / video.videoWidth))
-    const canvas = document.createElement('canvas')
-    canvas.width = targetWidth
-    canvas.height = targetHeight
-    const ctx = canvas.getContext('2d')
-    if (ctx) {
-      ctx.drawImage(video, 0, 0, targetWidth, targetHeight)
-      thumbnail = canvas.toDataURL('image/jpeg', 0.76)
+    try {
+      thumbnail = await createThumbnailInWorker(video, targetWidth, targetHeight)
+    } catch {
+      thumbnail = createThumbnailSync(video, targetWidth, targetHeight)
     }
   }
 
