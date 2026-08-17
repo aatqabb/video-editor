@@ -1,0 +1,36 @@
+name: Integrate Script Workspace
+
+on:
+  push:
+    paths:
+      - 'scripts/integrate-script-workspace.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Integrate Script workspace into App
+        run: node scripts/integrate-script-workspace.mjs src/App.jsx
+      - name: Commit generated integration
+        run: |
+          if git diff --quiet -- src/App.jsx; then
+            echo "No App.jsx changes needed"
+            exit 0
+          fi
+          git config user.name "aatqabb"
+          git config user.email "aatqagillani@gmail.com"
+          git add src/App.jsx
+          git commit -m "Integrate script stock workflow"
+          git push
