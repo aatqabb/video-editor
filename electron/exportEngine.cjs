@@ -1,0 +1,266 @@
+const { spawn, spawnSync } = require('node:child_process')
+const fs = require('node:fs')
+const path = require('node:path')
+
+function ffmpegCandidates() {
+  const executable = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
+  const candidates = [
+    process.env.VIDEO_EDITOR_FFMPEG,
+    process.resourcesPath && path.join(process.resourcesPath, executable),
+    process.resourcesPath && path.join(process.resourcesPath, 'ffmpeg', executable),
+    path.join(__dirname, '..', 'resources', 'ffmpeg', executable),
+    'ffmpeg',
+  ]
+  return [...new Set(candidates.filter(Boolean))]
+}
+
+function canRun(binary) {
+  try {
+    const result = spawnSync(binary, ['-hide_banner', '-version'], { encoding: 'utf8', windowsHide: true, timeout: 5000 })
+    return result.status === 0
+  } catch {
+    return false
+  }
+}
+
+function resolveFfmpeg() {
+  return ffmpegCandidates().find(canRun) || null
+}
+
+function probeEncoders(binary) {
+  if (!binary) return []
+  try {
+    const result = spawnSync(binary, ['-hide_banner', '-encoders'], { encoding: 'utf8', windowsHide: true, timeout: 10000 })
+    const text = `${result.stdout || ''}\n${result.stderr || ''}`
+    return ['h264_nvenc', 'h264_qsv', 'h264_amf', 'libx264', 'libmp3lame', 'aac']
+      .filter((encoder) => text.includes(encoder))
+  } catch {
+    return []
+  }
+}
+
+function probeFfmpeg() {
+  const binary = resolveFfmpeg()
+  const encoders = probeEncoders(binary)
+  return {
+    available: Boolean(binary),
+    binary,
+    encoders,
+    hardwareEncoders: encoders.filter((encoder) => ['h264_nvenc', 'h264_qsv', 'h264_amf'].includes(encoder)),
+  }
+}
+
+function escapeFilterPath(value) {
+  return String(value).replace(/\\/g, '/').replace(/:/g, '\\:').replace(/'/g, "\\'")
+}
+
+function clipInput(clip) {
+  if (clip.sourcePath && fs.existsSync(clip.sourcePath)) return clip.sourcePath
+  if (clip.remoteUrl && /^https?:\/\//i.test(clip.remoteUrl)) return clip.remoteUrl
+  return null
+}
+
+function chooseVideoEncoder(capabilities, renderMode = 'Auto') {
+  if (renderMode === 'CPU') return capabilities.encoders.includes('libx264') ? 'libx264' : null
+  const preferred = ['h264_nvenc', 'h264_qsv', 'h264_amf']
+  const hardware = preferred.find((encoder) => capabilities.encoders.includes(encoder))
+  if (renderMode === 'GPU') return hardware
+  return hardware || (capabilities.encoders.includes('libx264') ? 'libx264' : null)
+}
+
+function seconds(value) {
+  return Math.max(0, Number(value) || 0)
+}
+
+function timelineDuration(manifest) {
+  const ends = (manifest.clips || []).map((clip) => seconds(clip.start) + seconds(clip.duration))
+  return Math.max(1, ...ends)
+}
+
+function addMediaInputs(args, clips) {
+  const inputMap = new Map()
+  for (const clip of clips) {
+    const source = clipInput(clip)
+    if (!source) continue
+    const key = `${clip.id}:${source}`
+    if (clip.kind === 'image') {
+      args.push('-loop', '1', '-t', String(seconds(clip.duration)), '-i', source)
+    } else {
+      const sourceIn = seconds(clip.sourceIn)
+      if (sourceIn) args.push('-ss', String(sourceIn))
+      args.push('-t', String(Math.max(.05, seconds(clip.duration) * Math.max(.1, Number(clip.video?.speed) || 1))), '-i', source)
+    }
+    inputMap.set(key, inputMap.size + 1)
+  }
+  return inputMap
+}
+
+function videoClipFilter(clip, inputIndex, width, height) {
+  const video = clip.video || {}
+  const cropTop = Math.max(0, Math.min(49, Number(video.cropTop) || 0)) / 100
+  const cropRight = Math.max(0, Math.min(49, Number(video.cropRight) || 0)) / 100
+  const cropBottom = Math.max(0, Math.min(49, Number(video.cropBottom) || 0)) / 100
+  const cropLeft = Math.max(0, Math.min(49, Number(video.cropLeft) || 0)) / 100
+  const cropW = Math.max(.02, 1 - cropLeft - cropRight)
+  const cropH = Math.max(.02, 1 - cropTop - cropBottom)
+  const scalePercent = Math.max(.01, (Number(video.scale) || 100) / 100)
+  const targetW = Math.max(2, Math.round(width * scalePercent))
+  const targetH = Math.max(2, Math.round(height * scalePercent))
+  const fit = video.fitMode || 'Fit'
+  const scaleFilter = fit === 'Stretch'
+    ? `scale=${targetW}:${targetH}`
+    : fit === 'Fill'
+      ? `scale=${targetW}:${targetH}:force_original_aspect_ratio=increase,crop=${targetW}:${targetH}`
+      : `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:color=black@0`
+  const opacity = Math.max(0, Math.min(1, (Number(video.opacity ?? 100)) / 100))
+  const start = seconds(clip.start)
+  const speed = Math.max(.1, Number(video.speed) || 1)
+  const rotation = (Number(video.rotation) || 0) * Math.PI / 180
+
+  const filters = [
+    `crop=iw*${cropW}:ih*${cropH}:iw*${cropLeft}:ih*${cropTop}`,
+    scaleFilter,
+  ]
+  if (rotation) filters.push(`rotate=${rotation}:ow=rotw(${rotation}):oh=roth(${rotation}):c=black@0`)
+  if (speed !== 1) filters.push(`setpts=PTS/${speed}`)
+  filters.push(`format=rgba,colorchannelmixer=aa=${opacity}`)
+
+  for (const effect of clip.effects || []) {
+    const intensity = Math.max(0, Math.min(100, Number(effect.intensity) || 0))
+    if (effect.type === 'Blur') filters.push(`gblur=sigma=${Math.max(.1, intensity / 16)}`)
+    if (effect.type === 'Grayscale') filters.push('hue=s=0')
+    if (effect.type === 'Brightness') filters.push(`eq=brightness=${(intensity - 50) / 100}`)
+    if (effect.type === 'Contrast') filters.push(`eq=contrast=${Math.max(.1, intensity / 50)}`)
+    if (effect.type === 'Saturate') filters.push(`eq=saturation=${Math.max(0, intensity / 50)}`)
+    if (effect.type === 'Sepia') filters.push(`colorchannelmixer=.393:.769:.189:.349:.686:.168:.272:.534:.131`)
+  }
+  filters.push(`setpts=PTS-STARTPTS+${start}/TB`)
+  return filters.join(',')
+}
+
+function buildVideoFilters(manifest, inputMap, duration) {
+  const width = Math.max(64, Math.round(manifest.settings?.width || 1920))
+  const height = Math.max(64, Math.round(manifest.settings?.height || 1080))
+  const fps = Math.max(1, Math.round(manifest.options?.fps || manifest.settings?.fps || 30))
+  const lines = [`color=c=black:s=${width}x${height}:r=${fps}:d=${duration}[base0]`]
+
+  const videoClips = (manifest.clips || [])
+    .filter((clip) => clip.type === 'video' && clip.kind !== 'text' && clipInput(clip))
+    .sort((a, b) => {
+      const an = Number(String(a.trackId || '').replace(/\D/g, '')) || 1
+      const bn = Number(String(b.trackId || '').replace(/\D/g, '')) || 1
+      return an - bn || a.start - b.start
+    })
+
+  let base = 'base0'
+  videoClips.forEach((clip, index) => {
+    const source = clipInput(clip)
+    const inputIndex = inputMap.get(`${clip.id}:${source}`)
+    const prepared = `vprep${index}`
+    lines.push(`[${inputIndex}:v]${videoClipFilter(clip, inputIndex, width, height)}[${prepared}]`)
+    const nextBase = `base${index + 1}`
+    const x = `(W-w)*${Math.max(0, Math.min(1, (Number(clip.video?.positionX ?? 50)) / 100))}`
+    const y = `(H-h)*${Math.max(0, Math.min(1, (Number(clip.video?.positionY ?? 50)) / 100))}`
+    const start = seconds(clip.start)
+    const end = start + seconds(clip.duration)
+    lines.push(`[${base}][${prepared}]overlay=x=${x}:y=${y}:enable='between(t,${start},${end})':eof_action=pass[${nextBase}]`)
+    base = nextBase
+  })
+
+  return { lines, outputLabel: base, width, height, fps }
+}
+
+function buildAudioFilters(manifest, inputMap) {
+  const audioClips = (manifest.clips || []).filter((clip) => clip.type === 'audio' && clipInput(clip))
+  if (!audioClips.length) return { lines: [], outputLabel: null }
+  const lines = []
+  const outputs = []
+
+  audioClips.forEach((clip, index) => {
+    const source = clipInput(clip)
+    const inputIndex = inputMap.get(`${clip.id}:${source}`)
+    const duration = Math.max(.05, seconds(clip.duration))
+    const volume = Math.max(0, (Number(clip.audio?.volume ?? 100)) / 100)
+    const fadeIn = Math.min(duration, Math.max(0, Number(clip.audio?.fadeIn) || 0))
+    const fadeOut = Math.min(duration, Math.max(0, Number(clip.audio?.fadeOut) || 0))
+    const delay = Math.max(0, Math.round(seconds(clip.start) * 1000))
+    const parts = [`atrim=duration=${duration}`, 'asetpts=PTS-STARTPTS', `volume=${volume}`]
+    if (fadeIn) parts.push(`afade=t=in:st=0:d=${fadeIn}`)
+    if (fadeOut) parts.push(`afade=t=out:st=${Math.max(0, duration - fadeOut)}:d=${fadeOut}`)
+    parts.push(`adelay=${delay}|${delay}`)
+    const label = `aprep${index}`
+    lines.push(`[${inputIndex}:a]${parts.join(',')}[${label}]`)
+    outputs.push(`[${label}]`)
+  })
+
+  if (outputs.length === 1) return { lines, outputLabel: outputs[0].slice(1, -1) }
+  lines.push(`${outputs.join('')}amix=inputs=${outputs.length}:duration=longest:dropout_transition=0[aout]`)
+  return { lines, outputLabel: 'aout' }
+}
+
+function buildExportArgs(manifest, outputPath, capabilities) {
+  const options = manifest.options || {}
+  const duration = timelineDuration(manifest)
+  const args = ['-y', '-hide_banner', '-loglevel', 'info']
+  const clipsWithSources = (manifest.clips || []).filter((clip) => clipInput(clip))
+  const inputMap = addMediaInputs(args, clipsWithSources)
+
+  if (options.format === 'mp3') {
+    const audio = buildAudioFilters(manifest, inputMap)
+    if (!audio.outputLabel) throw new Error('No exportable audio clips have a real file path or remote source')
+    args.push('-filter_complex', audio.lines.join(';'), '-map', `[${audio.outputLabel}]`, '-t', String(duration), '-vn')
+    args.push('-c:a', capabilities.encoders.includes('libmp3lame') ? 'libmp3lame' : 'mp3', '-b:a', options.audioBitrate || '192k', outputPath)
+    return args
+  }
+
+  const video = buildVideoFilters(manifest, inputMap, duration)
+  const audio = buildAudioFilters(manifest, inputMap)
+  const filters = [...video.lines, ...audio.lines]
+  args.push('-filter_complex', filters.join(';'), '-map', `[${video.outputLabel}]`)
+  if (audio.outputLabel) args.push('-map', `[${audio.outputLabel}]`)
+  const encoder = chooseVideoEncoder(capabilities, options.renderMode || 'Auto')
+  if (!encoder) throw new Error(options.renderMode === 'GPU' ? 'No supported GPU H.264 encoder found in FFmpeg' : 'No H.264 encoder found in FFmpeg')
+  args.push('-c:v', encoder)
+  if (encoder === 'libx264') args.push('-preset', options.quality === 'High' ? 'slow' : options.quality === 'Low' ? 'veryfast' : 'medium', '-crf', options.quality === 'High' ? '18' : options.quality === 'Low' ? '28' : '22')
+  else args.push('-b:v', options.quality === 'High' ? '20M' : options.quality === 'Low' ? '5M' : '10M')
+  if (audio.outputLabel) args.push('-c:a', 'aac', '-b:a', options.audioBitrate || '192k')
+  args.push('-r', String(video.fps), '-t', String(duration), '-movflags', '+faststart', '-pix_fmt', 'yuv420p', outputPath)
+  return args
+}
+
+function parseFfmpegTime(line) {
+  const match = line.match(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/)
+  if (!match) return null
+  return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3])
+}
+
+function startExport(manifest, outputPath, onProgress) {
+  const capabilities = probeFfmpeg()
+  if (!capabilities.available) throw new Error('FFmpeg is not installed or bundled yet')
+  const args = buildExportArgs(manifest, outputPath, capabilities)
+  const duration = timelineDuration(manifest)
+  const child = spawn(capabilities.binary, args, { windowsHide: true })
+  let stderr = ''
+
+  child.stderr.on('data', (chunk) => {
+    const text = chunk.toString()
+    stderr = `${stderr}${text}`.slice(-12000)
+    const current = parseFfmpegTime(text)
+    if (current != null) onProgress?.({ current, duration, percent: Math.max(0, Math.min(100, current / duration * 100)) })
+  })
+
+  const done = new Promise((resolve, reject) => {
+    child.on('error', reject)
+    child.on('close', (code) => {
+      if (code === 0) resolve({ outputPath, encoder: capabilities.hardwareEncoders[0] || 'CPU' })
+      else reject(new Error(`FFmpeg export failed (${code}). ${stderr.slice(-1800)}`))
+    })
+  })
+
+  return { child, done, args, capabilities }
+}
+
+module.exports = {
+  probeFfmpeg,
+  startExport,
+}
