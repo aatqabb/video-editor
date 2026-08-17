@@ -1,7 +1,9 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron/main')
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron/main')
 const path = require('node:path')
+const { probeFfmpeg, startExport } = require('./exportEngine.cjs')
 
 let mainWindow = null
+let activeExport = null
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -22,7 +24,7 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => mainWindow.show())
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    require('electron').shell.openExternal(url)
+    shell.openExternal(url)
     return { action: 'deny' }
   })
 
@@ -47,6 +49,17 @@ ipcMain.handle('desktop:get-system-info', async () => {
   }
 })
 
+ipcMain.handle('desktop:get-export-capabilities', async () => {
+  let gpuInfo = null
+  try { gpuInfo = await app.getGPUInfo('basic') } catch { gpuInfo = null }
+  return {
+    ffmpeg: probeFfmpeg(),
+    hardwareAcceleration: app.isHardwareAccelerationEnabled(),
+    gpuFeatureStatus: app.getGPUFeatureStatus(),
+    gpuInfo,
+  }
+})
+
 ipcMain.handle('desktop:choose-export-path', async (_event, options = {}) => {
   const extension = options.extension || (options.format === 'mp3' ? 'mp3' : 'mp4')
   const result = await dialog.showSaveDialog(mainWindow, {
@@ -59,6 +72,34 @@ ipcMain.handle('desktop:choose-export-path', async (_event, options = {}) => {
     ],
   })
   return result.canceled ? null : result.filePath
+})
+
+ipcMain.handle('desktop:start-export', async (event, payload) => {
+  if (activeExport) throw new Error('An export is already running')
+  const manifest = payload?.manifest
+  const outputPath = payload?.outputPath
+  if (!manifest || !Array.isArray(manifest.clips)) throw new Error('Invalid export manifest')
+  if (!outputPath || typeof outputPath !== 'string') throw new Error('Choose an export location first')
+
+  const job = startExport(manifest, outputPath, (progress) => {
+    if (!event.sender.isDestroyed()) event.sender.send('desktop:export-progress', progress)
+  })
+  activeExport = job
+
+  try {
+    const result = await job.done
+    if (!event.sender.isDestroyed()) event.sender.send('desktop:export-progress', { percent: 100, complete: true })
+    return result
+  } finally {
+    activeExport = null
+  }
+})
+
+ipcMain.handle('desktop:cancel-export', async () => {
+  if (!activeExport?.child) return false
+  activeExport.child.kill('SIGTERM')
+  activeExport = null
+  return true
 })
 
 ipcMain.handle('desktop:choose-project-path', async (_event, defaultName = 'Untitled Project.vedit.json') => {
