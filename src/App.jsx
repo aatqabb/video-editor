@@ -3,8 +3,10 @@ import './App.css'
 import ScriptWorkspace from './ScriptWorkspace'
 import { EffectsWorkspace, SfxWorkspace, TextWorkspace, TransitionWorkspace } from './CreativePanels'
 import { AudioControls, VideoControls, VoiceoverWorkspace } from './ClipControls'
+import ProjectWorkspace from './ProjectWorkspace'
+import { buildProjectDocument, clearAutosave, getRecentProjects, readAutosave, readProjectFile, rememberProject, saveProjectFile, writeAutosave } from './projectPersistence'
 
-const leftTabs = ['Project', 'Effect Controls', 'Effects', 'Tools', 'Text', 'Properties']
+const leftTabs = ['Media', 'Project', 'Effect Controls', 'Effects', 'Tools', 'Text', 'Properties']
 const centerTabs = ['Source', 'Script', 'Stock', 'SFX', 'Transitions', 'Essential Sound']
 
 const mediaItems = [
@@ -136,7 +138,13 @@ function getTextOverlayPresentation(clip, playhead) {
 }
 
 function App() {
-  const [leftTab, setLeftTab] = useState('Project')
+  const [leftTab, setLeftTab] = useState('Media')
+  const [projectName, setProjectName] = useState('Untitled Project')
+  const [projectSettings, setProjectSettings] = useState({ aspect: '16:9', resolution: '1080p', width: 1920, height: 1080, fps: 30 })
+  const [saveHandle, setSaveHandle] = useState(null)
+  const [recentProjects, setRecentProjects] = useState(() => getRecentProjects())
+  const [recoveryAvailable, setRecoveryAvailable] = useState(() => Boolean(readAutosave()))
+  const [autosaveTime, setAutosaveTime] = useState(null)
   const [centerTab, setCenterTab] = useState('Source')
   const [toast, setToast] = useState('')
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -455,6 +463,58 @@ function App() {
     notify(`${result.provider} video added to ${preferredTrack.id}`)
   }
 
+  const getProjectDocument = () => buildProjectDocument({
+    name: projectName, settings: projectSettings, clips, tracks, markers, playhead,
+  })
+
+  const applyProjectDocument = (document) => {
+    setProjectName(document.name || 'Untitled Project')
+    setProjectSettings(document.settings || { aspect: '16:9', resolution: '1080p', width: 1920, height: 1080, fps: 30 })
+    setClips(cloneClips(document.timeline.clips || []))
+    setTracks((document.timeline.tracks || initialTracks).map((track) => ({ ...track })))
+    setMarkers([...(document.timeline.markers || [])])
+    setPlayhead(Number(document.timeline.playhead) || 0)
+    setSelectedClipIds([])
+    setHistory([])
+    setFuture([])
+  }
+
+  const saveProject = async (forceNewLocation = false) => {
+    try {
+      const project = getProjectDocument()
+      const result = await saveProjectFile(project, saveHandle, forceNewLocation)
+      setSaveHandle(result.handle || null)
+      setRecentProjects(rememberProject(project, 'saved'))
+      clearAutosave()
+      setRecoveryAvailable(false)
+      notify(result.method === 'picker' ? 'Project saved' : 'Project file downloaded')
+    } catch (error) {
+      if (error?.name === 'AbortError') return
+      notify(error?.message || 'Could not save project')
+    }
+  }
+
+  const openProject = async (file) => {
+    if (!file) return
+    try {
+      const project = await readProjectFile(file)
+      applyProjectDocument(project)
+      setSaveHandle(null)
+      setRecentProjects(rememberProject(project, 'opened'))
+      notify(`Opened ${project.name}`)
+    } catch (error) {
+      notify(error?.message || 'Could not open project')
+    }
+  }
+
+  const recoverProject = () => {
+    const project = readAutosave()
+    if (!project) return notify('No recovery autosave found')
+    applyProjectDocument(project)
+    setRecoveryAvailable(false)
+    notify('Latest autosave recovered')
+  }
+
   const startVerticalResize = (side, event) => {
     event.preventDefault()
     const startX = event.clientX
@@ -564,8 +624,19 @@ function App() {
     return () => window.removeEventListener('keydown', onKeyDown)
   })
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const project = buildProjectDocument({ name: projectName, settings: projectSettings, clips, tracks, markers, playhead })
+      if (writeAutosave(project)) {
+        setAutosaveTime(Date.now())
+        setRecoveryAvailable(true)
+      }
+    }, 1200)
+    return () => window.clearTimeout(timer)
+  }, [projectName, projectSettings, clips, tracks, markers, playhead])
+
   const renderLeftBody = () => {
-    if (leftTab === 'Project') {
+    if (leftTab === 'Media') {
       return (
         <>
           <div className="project-row">
@@ -598,6 +669,25 @@ function App() {
     if (leftTab === 'Effect Controls' || leftTab === 'Properties') {
       if (selectedClip?.type === 'audio') return <AudioControls clip={selectedClip} onUpdate={updateClipControls} />
       return <VideoControls clip={selectedClip} onUpdate={updateClipControls} notify={notify} />
+    }
+
+    if (leftTab === 'Project') {
+      return (
+        <ProjectWorkspace
+          name={projectName}
+          setName={setProjectName}
+          settings={projectSettings}
+          setSettings={setProjectSettings}
+          onSave={() => saveProject(false)}
+          onSaveAs={() => saveProject(true)}
+          onOpenProject={openProject}
+          onRecover={recoverProject}
+          recoveryAvailable={recoveryAvailable}
+          autosaveTime={autosaveTime}
+          recentProjects={recentProjects}
+          notify={notify}
+        />
+      )
     }
 
     if (leftTab === 'Effects') {
@@ -652,7 +742,7 @@ function App() {
             <button key={item} className={item === 'Edit' ? 'active' : ''} onClick={() => notify(`${item} workspace`)}>{item}</button>
           ))}
         </nav>
-        <div className="project-title">Untitled Project</div>
+        <button className="project-title" onClick={() => setLeftTab('Project')} title="Project settings">{projectName}</button>
         <div className="top-actions">
           <button onClick={() => setShowShortcuts(true)}>⌨</button>
           <button onClick={() => notify('Layout options')}>☷</button>
@@ -686,7 +776,7 @@ function App() {
 
           <section className="panel right-panel" style={{ width: `${rightWidth}%` }}>
             <div className="tab-strip"><button className="active" onClick={() => notify('Program monitor')}>Program: Untitled Project</button></div>
-            <div className="panel-body center-body"><Monitor playing={playing} setPlaying={setPlaying} notify={notify} timelineClips={clips} playhead={playhead} /></div>
+            <div className="panel-body center-body"><Monitor playing={playing} setPlaying={setPlaying} notify={notify} timelineClips={clips} playhead={playhead} projectSettings={projectSettings} /></div>
           </section>
         </section>
 
@@ -749,7 +839,8 @@ function App() {
   )
 }
 
-function Monitor({ playing, setPlaying, notify, empty = false, timelineClips = [], playhead = 0 }) {
+function Monitor({ playing, setPlaying, notify, empty = false, timelineClips = [], playhead = 0, projectSettings = { width: 1920, height: 1080 } }) {
+  const canvasAspect = `${projectSettings.width || 1920} / ${projectSettings.height || 1080}`
   const activeClips = empty ? [] : timelineClips.filter((clip) => playhead >= clip.start && playhead < clip.start + clip.duration)
   const textClips = activeClips.filter((clip) => clip.kind === 'text')
   const activeVideo = activeClips.find((clip) => clip.type === 'video' && clip.kind !== 'text')
@@ -770,7 +861,7 @@ function Monitor({ playing, setPlaying, notify, empty = false, timelineClips = [
 
   return (
     <div className="monitor">
-      <div className={`monitor-screen ${empty ? 'empty' : 'program'}`} style={empty ? undefined : effectStyle}>
+      <div className={`monitor-screen ${empty ? 'empty' : 'program'}`} style={empty ? undefined : { ...effectStyle, aspectRatio: canvasAspect }}>
         <span className={activeVideo ? 'program-placeholder hidden' : 'program-placeholder'}>{empty ? 'SOURCE MONITOR' : 'PROGRAM PREVIEW'}</span>
         {!empty && activeVideo && (
           <div className="program-video-layer" style={programVideoStyle}>
