@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './ExportWorkspace.css'
 
 const videoResolutions = {
@@ -13,6 +13,17 @@ function safeExportName(name, extension) {
   return `${base}.${extension}`
 }
 
+function formatRemaining(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return ''
+  const whole = Math.max(0, Math.round(seconds))
+  const hours = Math.floor(whole / 3600)
+  const minutes = Math.floor((whole % 3600) / 60)
+  const secs = whole % 60
+  if (hours) return `${hours}h ${minutes}m remaining`
+  if (minutes) return `${minutes}m ${secs}s remaining`
+  return `${secs}s remaining`
+}
+
 export default function ExportWorkspace({ projectName, projectSettings, clips, tracks, notify }) {
   const desktop = window.videoEditorDesktop
   const [format, setFormat] = useState('mp4')
@@ -25,6 +36,8 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
   const [progress, setProgress] = useState(0)
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState('Ready')
+  const [remaining, setRemaining] = useState('')
+  const exportStartedAtRef = useRef(0)
 
   useEffect(() => {
     let disposed = false
@@ -34,8 +47,19 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
         .catch(() => !disposed && setCapabilities(null))
     }
     const unsubscribe = desktop?.onExportProgress?.((next) => {
-      if (typeof next?.percent === 'number') setProgress(next.percent)
-      if (next?.complete) setStatus('Export complete')
+      if (typeof next?.percent === 'number') {
+        const nextPercent = Math.max(0, Math.min(100, next.percent))
+        setProgress(nextPercent)
+        if (nextPercent > 0 && nextPercent < 100 && exportStartedAtRef.current) {
+          const elapsedSeconds = (Date.now() - exportStartedAtRef.current) / 1000
+          const estimatedTotal = elapsedSeconds / (nextPercent / 100)
+          setRemaining(formatRemaining(Math.max(0, estimatedTotal - elapsedSeconds)))
+        }
+      }
+      if (next?.complete) {
+        setStatus('Export complete')
+        setRemaining('')
+      }
     })
     return () => {
       disposed = true
@@ -81,23 +105,30 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
 
     setRunning(true)
     setProgress(0)
+    setRemaining('Calculating remaining time…')
     setStatus('Preparing export…')
+    exportStartedAtRef.current = Date.now()
     try {
       const result = await desktop.startExport({ manifest: buildManifest(), outputPath: path })
       setProgress(100)
+      setRemaining('')
       setStatus(`Complete · ${result?.encoder || 'encoder'}`)
       notify('Export complete')
     } catch (error) {
+      setRemaining('')
       setStatus(error?.message || 'Export failed')
       notify('Export failed — see Export status')
     } finally {
+      exportStartedAtRef.current = 0
       setRunning(false)
     }
   }
 
   const cancel = async () => {
     await desktop?.cancelExport?.()
+    exportStartedAtRef.current = 0
     setRunning(false)
+    setRemaining('')
     setStatus('Export cancelled')
     notify('Export cancelled')
   }
@@ -135,7 +166,7 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
       </div>
 
       <div className="export-progress-block">
-        <div className="export-progress-head"><span>{status}</span><strong>{Math.round(progress)}%</strong></div>
+        <div className="export-progress-head"><span>{remaining ? `${status} · ${remaining}` : status}</span><strong>{Math.round(progress)}%</strong></div>
         <progress max="100" value={progress} />
       </div>
 
