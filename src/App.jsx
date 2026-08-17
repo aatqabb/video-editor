@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import ScriptWorkspace from './ScriptWorkspace'
 import { EffectsWorkspace, SfxWorkspace, TextWorkspace, TransitionWorkspace } from './CreativePanels'
+import { AudioControls, VideoControls, VoiceoverWorkspace } from './ClipControls'
 
 const leftTabs = ['Project', 'Effect Controls', 'Effects', 'Tools', 'Text', 'Properties']
 const centerTabs = ['Source', 'Script', 'Stock', 'SFX', 'Transitions', 'Essential Sound']
@@ -206,6 +207,7 @@ function App() {
   )
 
   const selectedTextClip = selectedClips.find((clip) => clip.kind === 'text') || null
+  const selectedClip = selectedClips[0] || null
 
   const getTrack = (trackId) => tracks.find((track) => track.id === trackId)
 
@@ -332,6 +334,35 @@ function App() {
   const toggleTrack = (trackId, key) => {
     setTracks((current) => current.map((track) => track.id === trackId ? { ...track, [key]: !track[key] } : track))
     notify(`${trackId} ${key} toggled`)
+  }
+
+  const updateClipControls = (id, patch) => {
+    commitClips((current) => current.map((clip) => {
+      if (clip.id !== id) return clip
+      const next = { ...clip, ...patch }
+      if (patch.video) {
+        const previousSpeed = Number(clip.video?.speed) || 1
+        const nextSpeed = Math.max(.1, Number(patch.video.speed ?? previousSpeed))
+        const sourceDuration = Number(clip.sourceDuration) || clip.duration * previousSpeed
+        next.video = { ...(clip.video || {}), ...patch.video, speed: nextSpeed }
+        next.sourceDuration = sourceDuration
+        if (nextSpeed !== previousSpeed) next.duration = Math.max(MIN_CLIP_DURATION, sourceDuration / nextSpeed)
+      }
+      if (patch.audio) next.audio = { ...(clip.audio || {}), ...patch.audio }
+      return next
+    }))
+  }
+
+  const addAudioToTimeline = (audioInfo, targetTrackId = 'A1', startAt = playhead) => {
+    const track = firstUnlockedTrack('audio', targetTrackId)
+    if (!track) return notify('Unlock an audio track before adding audio')
+    const duration = Math.max(.1, Math.min(TIMELINE_SECONDS, Number(audioInfo.duration) || 3))
+    const id = audioInfo.id || `audio-${Date.now()}`
+    commitClips((current) => [...current, {
+      id, trackId: track.id, name: audioInfo.name || 'Audio', type: 'audio', kind: audioInfo.kind || 'audio', start: Math.max(0, Math.min(TIMELINE_SECONDS - duration, startAt)), duration, sourceDuration: duration, color: audioInfo.kind === 'voiceover' ? 'green' : 'yellow',
+      localUrl: audioInfo.url || null, audio: { volume: 100, fadeIn: 0, fadeOut: 0 },
+    }])
+    setSelectedClipIds([id])
   }
 
   const firstUnlockedTrack = (type, preferredId) => tracks.find((track) => track.id === preferredId && track.type === type && !track.locked)
@@ -564,6 +595,11 @@ function App() {
       )
     }
 
+    if (leftTab === 'Effect Controls' || leftTab === 'Properties') {
+      if (selectedClip?.type === 'audio') return <AudioControls clip={selectedClip} onUpdate={updateClipControls} />
+      return <VideoControls clip={selectedClip} onUpdate={updateClipControls} notify={notify} />
+    }
+
     if (leftTab === 'Effects') {
       return <EffectsWorkspace onApply={applyEffect} onReset={resetEffects} notify={notify} />
     }
@@ -588,14 +624,7 @@ function App() {
       return <TextWorkspace selectedTextClip={selectedTextClip} onAddText={addTextLayer} onUpdateText={updateTextLayer} notify={notify} />
     }
 
-    return (
-      <div className="property-body">
-        <div className="section-label">{leftTab.toUpperCase()}</div>
-        {['Position X / Y', 'Scale 100%', 'Rotation 0°', 'Opacity 100%', 'Speed 1.0x'].map((item) => (
-          <button key={item} onClick={() => notify(item)}>{item}</button>
-        ))}
-      </div>
-    )
+    return <VideoControls clip={selectedClip} onUpdate={updateClipControls} notify={notify} />
   }
 
   const renderCenterBody = () => {
@@ -611,7 +640,7 @@ function App() {
     if (centerTab === 'Stock') return <OptionGrid title="PEXELS + PIXABAY" options={['Search Videos', 'Preview Result 1', 'Preview Result 2', 'Preview Result 3', 'Download', 'Drag to Timeline']} onClick={notify} />
     if (centerTab === 'SFX') return <SfxWorkspace onAddSfx={(sfx) => addSfxToTimeline(sfx)} notify={notify} />
     if (centerTab === 'Transitions') return <TransitionWorkspace onApply={applyTransition} notify={notify} />
-    return <OptionGrid title="ESSENTIAL SOUND" options={['Dialogue', 'Music', 'SFX', 'Ambience', 'Volume', 'Fade In', 'Fade Out', 'Auto Ducking']} onClick={notify} />
+    return <VoiceoverWorkspace onAddAudio={(audioInfo, trackId) => addAudioToTimeline(audioInfo, trackId)} notify={notify} />
   }
 
   return (
@@ -725,11 +754,37 @@ function Monitor({ playing, setPlaying, notify, empty = false, timelineClips = [
   const textClips = activeClips.filter((clip) => clip.kind === 'text')
   const activeVideo = activeClips.find((clip) => clip.type === 'video' && clip.kind !== 'text')
   const effectStyle = buildMonitorEffectStyle(activeVideo?.effects || [])
+  const videoControls = activeVideo?.video || {}
+  const fitMode = videoControls.fitMode || 'Fit'
+  const programVideoStyle = activeVideo ? {
+    left: `${videoControls.positionX ?? 50}%`,
+    top: `${videoControls.positionY ?? 50}%`,
+    width: `${Math.max(1, Number(videoControls.scale) || 100)}%`,
+    height: `${Math.max(1, Number(videoControls.scale) || 100)}%`,
+    opacity: Math.max(0, Math.min(1, (videoControls.opacity ?? 100) / 100)),
+    transform: `translate(-50%, -50%) rotate(${Number(videoControls.rotation) || 0}deg)`,
+    clipPath: `inset(${videoControls.cropTop || 0}% ${videoControls.cropRight || 0}% ${videoControls.cropBottom || 0}% ${videoControls.cropLeft || 0}%)`,
+    objectFit: fitMode === 'Fill' ? 'cover' : fitMode === 'Stretch' ? 'fill' : 'contain',
+    ...effectStyle,
+  } : undefined
 
   return (
     <div className="monitor">
       <div className={`monitor-screen ${empty ? 'empty' : 'program'}`} style={empty ? undefined : effectStyle}>
-        <span>{empty ? 'SOURCE MONITOR' : 'PROGRAM PREVIEW'}</span>
+        <span className={activeVideo ? 'program-placeholder hidden' : 'program-placeholder'}>{empty ? 'SOURCE MONITOR' : 'PROGRAM PREVIEW'}</span>
+        {!empty && activeVideo && (
+          <div className="program-video-layer" style={programVideoStyle}>
+            {activeVideo.video?.freezeFrame && activeVideo.thumbnail ? (
+              <img src={activeVideo.thumbnail} alt="" style={{ objectFit: programVideoStyle.objectFit }} />
+            ) : activeVideo.remoteUrl || activeVideo.localUrl ? (
+              <video src={activeVideo.remoteUrl || activeVideo.localUrl} poster={activeVideo.thumbnail} muted playsInline autoPlay={playing && !activeVideo.video?.freezeFrame} loop style={{ objectFit: programVideoStyle.objectFit }} />
+            ) : activeVideo.thumbnail ? (
+              <img src={activeVideo.thumbnail} alt="" style={{ objectFit: programVideoStyle.objectFit }} />
+            ) : (
+              <div className="program-video-placeholder">{activeVideo.video?.freezeFrame ? '❄ ' : ''}{activeVideo.name}</div>
+            )}
+          </div>
+        )}
         {!empty && textClips.map((clip) => {
           const presentation = getTextOverlayPresentation(clip, playhead)
           return <div className="program-text-overlay" key={clip.id} style={presentation.style}>{presentation.text}</div>
@@ -945,7 +1000,9 @@ function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, 
                     {clip.thumbnail && <span className="clip-thumbnail-strip" style={{ backgroundImage: `url(${clip.thumbnail})` }} aria-hidden="true" />}
                     {!!clip.effects?.length && <span className="effect-badge">fx</span>}
                     {clip.transition && <span className="transition-badge">↔</span>}
+                    {clip.video?.freezeFrame && <span className="freeze-badge">❄</span>}
                     <span className="clip-name">{clip.name}</span>
+                    {clip.type === 'audio' && ((clip.audio?.fadeIn || 0) > 0 || (clip.audio?.fadeOut || 0) > 0) && <span className="audio-fade-indicator" />}
                     {clip.type === 'audio' && <span className="waveform-faux" aria-hidden="true" />}
                     <span className="trim-handle right" onPointerDown={(event) => startTrim(event, clip, 'right')} />
                   </button>
