@@ -1,0 +1,27 @@
+.project-workspace{height:100%;overflow:auto;padding:7px;background:#171719;color:#d8d8dc;font-size:10px}
+.project-workspace-heading{height:29px;display:flex;align-items:center;gap:6px;margin:-7px -7px 8px;padding:0 8px;background:#1b1b1e;border-bottom:1px solid #303034;position:sticky;top:-7px;z-index:3}
+.project-workspace-heading strong{font-size:10px;letter-spacing:.3px}
+.project-workspace-heading span{margin-left:auto;color:#7d7d84;font-family:Consolas,monospace;font-size:9px}
+.project-name-input{display:grid;gap:4px;color:#8d8d94;font-size:9px}
+.project-name-input input,.project-dimensions input{height:27px;background:#101012;border:1px solid #36363b;border-radius:3px;color:#ddd;padding:0 7px;min-width:0}
+.project-section-title{margin-top:9px;padding:5px 1px;color:#76767d;font-weight:700;font-size:8px;letter-spacing:.55px;border-top:1px solid #29292d}
+.project-preset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:5px}
+.project-preset-grid button,.project-file-actions button{height:28px;border:1px solid #37373c;background:#242428;color:#aaaab0;border-radius:3px;font-size:9px}
+.project-preset-grid button:hover,.project-preset-grid button.active{background:#283748;border-color:#3176af;color:#fff}
+.project-preset-grid.resolutions button{height:31px}
+.project-dimensions{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.project-dimensions label{display:grid;grid-template-columns:auto 1fr;gap:5px;align-items:center;color:#8d8d94;font-size:9px}
+.project-file-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.project-file-actions button:hover{background:#303035;color:#fff}
+.project-file-actions .primary{background:#176ec2;border-color:#287fd0;color:#fff}
+.autosave-status{display:flex;align-items:center;gap:7px;margin-top:7px;padding:6px 7px;border:1px solid #303034;background:#1c1c1f;border-radius:3px;color:#7e7e85;font-size:9px}
+.autosave-status strong{margin-left:auto;color:#a8a8af;font-weight:500}
+.recovery-btn{width:100%;height:28px;margin-top:5px;border:1px solid #67552e;background:#292313;color:#e3c37e;border-radius:3px;font-size:9px}
+.recovery-btn:hover{background:#352d18}
+.recent-projects-list{display:grid;gap:4px}
+.recent-projects-list button{text-align:left;display:grid;gap:2px;padding:6px 7px;border:1px solid #303034;background:#1d1d20;border-radius:3px}
+.recent-projects-list button:hover{background:#242428;border-color:#45454b}
+.recent-projects-list span{color:#d2d2d6;font-size:9px}
+.recent-projects-list small,.recent-empty{color:#74747b;font-size:8px}
+.recent-empty{padding:6px 2px}
+@media(max-width:900px){.project-dimensions,.project-file-actions{grid-template-columns:1fr}.project-preset-grid{grid-template-columns:repeat(2,1fr)}}
