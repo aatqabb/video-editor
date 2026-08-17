@@ -1,5 +1,13 @@
 import { useState } from 'react'
-import { getStockProviderStatus, makeSearchQuery, searchStockVideos, splitScriptText } from './stockApi'
+import {
+  clearStockApiKeys,
+  getStockApiKeys,
+  getStockProviderStatus,
+  makeSearchQuery,
+  saveStockApiKeys,
+  searchStockVideos,
+  splitScriptText,
+} from './stockApi'
 import './ScriptWorkspace.css'
 
 function makeLine(line, index = 0) {
@@ -21,7 +29,22 @@ Stars.`
   const [lines, setLines] = useState(() => splitScriptText(initialScript).map(makeLine))
   const [searchState, setSearchState] = useState({})
   const [preview, setPreview] = useState(null)
+  const [showApiKeys, setShowApiKeys] = useState(false)
+  const [apiKeys, setApiKeys] = useState(() => getStockApiKeys())
   const providerStatus = getStockProviderStatus()
+
+  const saveApiSettings = () => {
+    const status = saveStockApiKeys(apiKeys)
+    setApiKeys(getStockApiKeys())
+    setShowApiKeys(false)
+    notify(`Stock APIs saved: ${status.pexels ? 'Pexels ' : ''}${status.pixabay ? 'Pixabay' : ''}`.trim())
+  }
+
+  const clearApiSettings = () => {
+    clearStockApiKeys()
+    setApiKeys({ pexels: '', pixabay: '' })
+    notify('Saved stock API keys cleared')
+  }
 
   const splitIntoLines = () => {
     const nextLines = splitScriptText(script).map(makeLine)
@@ -112,6 +135,7 @@ Stars.`
           <option>Pexels</option>
           <option>Pixabay</option>
         </select>
+        <button onClick={() => setShowApiKeys((value) => !value)}>API Keys</button>
         <button onClick={searchAll}>Search All</button>
       </div>
 
@@ -122,8 +146,38 @@ Stars.`
         <span className={providerStatus.pixabay ? 'api-ready' : 'api-missing'}>
           Pixabay {providerStatus.pixabay ? 'ready' : 'key missing'}
         </span>
-        <span className="api-hint">Keys go in .env.local — never commit them.</span>
+        <span className="api-hint">Keys are stored only on this PC/browser.</span>
       </div>
+
+      {showApiKeys && (
+        <div className="api-key-panel">
+          <label>
+            <span>Pexels API key</span>
+            <input
+              type="password"
+              value={apiKeys.pexels}
+              onChange={(event) => setApiKeys((keys) => ({ ...keys, pexels: event.target.value }))}
+              placeholder="Paste Pexels key"
+              autoComplete="off"
+            />
+          </label>
+          <label>
+            <span>Pixabay API key</span>
+            <input
+              type="password"
+              value={apiKeys.pixabay}
+              onChange={(event) => setApiKeys((keys) => ({ ...keys, pixabay: event.target.value }))}
+              placeholder="Paste Pixabay key"
+              autoComplete="off"
+            />
+          </label>
+          <div className="api-key-actions">
+            <button className="api-save-btn" onClick={saveApiSettings}>Save Keys</button>
+            <button onClick={clearApiSettings}>Clear Saved</button>
+            <button onClick={() => setShowApiKeys(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       <textarea
         className="full-script-input"
