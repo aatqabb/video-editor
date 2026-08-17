@@ -38,6 +38,7 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
   const [status, setStatus] = useState('Ready')
   const [remaining, setRemaining] = useState('')
   const exportStartedAtRef = useRef(0)
+  const cancelRequestedRef = useRef(false)
 
   useEffect(() => {
     let disposed = false
@@ -47,6 +48,7 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
         .catch(() => !disposed && setCapabilities(null))
     }
     const unsubscribe = desktop?.onExportProgress?.((next) => {
+      if (cancelRequestedRef.current) return
       if (typeof next?.percent === 'number') {
         const nextPercent = Math.max(0, Math.min(100, next.percent))
         setProgress(nextPercent)
@@ -103,6 +105,7 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
     if (!path) path = await chooseLocation()
     if (!path) return
 
+    cancelRequestedRef.current = false
     setRunning(true)
     setProgress(0)
     setRemaining('Calculating remaining time…')
@@ -110,14 +113,19 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
     exportStartedAtRef.current = Date.now()
     try {
       const result = await desktop.startExport({ manifest: buildManifest(), outputPath: path })
+      if (cancelRequestedRef.current) return
       setProgress(100)
       setRemaining('')
       setStatus(`Complete · ${result?.encoder || 'encoder'}`)
       notify('Export complete')
     } catch (error) {
       setRemaining('')
-      setStatus(error?.message || 'Export failed')
-      notify('Export failed — see Export status')
+      if (cancelRequestedRef.current) {
+        setStatus('Export cancelled')
+      } else {
+        setStatus(error?.message || 'Export failed')
+        notify('Export failed — see Export status')
+      }
     } finally {
       exportStartedAtRef.current = 0
       setRunning(false)
@@ -125,12 +133,22 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
   }
 
   const cancel = async () => {
-    await desktop?.cancelExport?.()
+    if (!running) return
+    cancelRequestedRef.current = true
     exportStartedAtRef.current = 0
-    setRunning(false)
     setRemaining('')
-    setStatus('Export cancelled')
-    notify('Export cancelled')
+    setStatus('Cancelling export…')
+    try {
+      await desktop?.cancelExport?.()
+      setStatus('Export cancelled')
+      notify('Export cancelled')
+    } catch (error) {
+      cancelRequestedRef.current = false
+      setStatus(error?.message || 'Could not cancel export')
+      notify('Could not cancel export')
+    } finally {
+      setRunning(false)
+    }
   }
 
   const ffmpeg = capabilities?.ffmpeg
