@@ -105,6 +105,7 @@ export async function processMediaFile(file) {
   if (type === 'unknown') throw new Error(`${file.name}: unsupported media type`)
 
   const localUrl = URL.createObjectURL(file)
+  const sourcePath = window.videoEditorDesktop?.getPathForFile?.(file) || ''
   const base = {
     id: `media-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
     name: file.name,
@@ -113,6 +114,7 @@ export async function processMediaFile(file) {
     size: file.size,
     lastModified: file.lastModified,
     localUrl,
+    sourcePath,
     sourceFileName: file.name,
   }
 
