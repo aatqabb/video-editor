@@ -1,0 +1,28 @@
+.clip-controls-panel,.voiceover-workspace{height:100%;overflow:auto;padding:7px;background:#171719;color:#d8d8dc;font-size:10px}
+.clip-controls-empty{padding:15px;color:#77777f;font-size:10px;line-height:1.45}
+.clip-controls-heading{height:29px;display:flex;align-items:center;gap:7px;margin:-7px -7px 8px;padding:0 8px;background:#1b1b1e;border-bottom:1px solid #303034;position:sticky;top:-7px;z-index:3}
+.clip-controls-heading strong{font-size:10px;letter-spacing:.25px}
+.clip-controls-heading span{margin-left:auto;color:#77777f;max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px}
+.clip-control-row{display:grid;grid-template-columns:65px minmax(60px,1fr) 58px 18px;align-items:center;gap:5px;min-height:31px;border-bottom:1px solid #28282c;color:#9999a0}
+.clip-control-row input[type=range]{width:100%}
+.clip-control-row .clip-control-number,.crop-grid input{height:24px;background:#101012;border:1px solid #36363b;color:#ddd;border-radius:3px;padding:0 5px;font-family:Consolas,monospace;font-size:9px;min-width:0}
+.clip-control-row small{color:#707078;font-size:8px}
+.clip-control-section{margin-top:8px;padding:4px 1px;color:#77777f;font-size:8px;font-weight:700;letter-spacing:.5px}
+.crop-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+.crop-grid label{display:grid;grid-template-columns:1fr 54px 13px;align-items:center;gap:4px;color:#929299;background:#1d1d20;border:1px solid #303034;border-radius:3px;padding:4px 5px;font-size:9px}
+.crop-grid small{color:#6f6f76;font-size:8px}
+.clip-button-row{display:flex;gap:5px;margin-bottom:6px}
+.clip-button-row button{flex:1;height:26px;border:1px solid #37373c;border-radius:3px;background:#242428;font-size:9px;color:#aaaab0}
+.clip-button-row button:hover,.clip-button-row button.active{background:#283748;border-color:#3176af;color:#fff}
+.clip-button-row.wide{margin-top:8px}
+.voiceover-actions{display:grid;gap:6px}
+.voiceover-actions button{height:30px;border:1px solid #3b3b40;background:#252529;color:#ddd;border-radius:3px;font-size:9px}
+.voiceover-actions button:hover{background:#303035}
+.voiceover-actions .record-btn{border-color:#6e3232;color:#f0aaaa;background:#2b1818}
+.voiceover-actions .record-btn.active{background:#6a1d1d;color:white;border-color:#9c3838}
+.voiceover-workspace p{color:#77777f;font-size:9px;line-height:1.45;margin:8px 1px}
+.program-video-layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1;overflow:hidden}
+.program-video-layer img,.program-video-layer video{width:100%;height:100%;display:block;object-position:center}
+.program-video-placeholder{width:72%;height:72%;border:1px dashed rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;color:#7a8491;background:rgba(0,0,0,.18);font-size:10px}
+.audio-fade-indicator{position:absolute;bottom:2px;left:3px;right:3px;height:2px;background:linear-gradient(90deg,transparent,#fff 18%,#fff 82%,transparent);opacity:.35;pointer-events:none}
+.freeze-badge{position:absolute;left:2px;top:2px;z-index:7;background:rgba(0,0,0,.76);padding:1px 3px;border-radius:2px;font-size:7px;color:#dff0ff;pointer-events:none}
