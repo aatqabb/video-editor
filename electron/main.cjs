@@ -63,6 +63,14 @@ ipcMain.handle('desktop:get-export-capabilities', async () => {
   }
 })
 
+function ensureExportExtension(filePath, extension) {
+  if (!filePath) return null
+  const normalizedExtension = String(extension || '').replace(/[^a-z0-9]/gi, '').toLowerCase()
+  if (!normalizedExtension) return filePath
+  const suffix = `.${normalizedExtension}`
+  return filePath.toLowerCase().endsWith(suffix) ? filePath : `${filePath}${suffix}`
+}
+
 ipcMain.handle('desktop:choose-export-path', async (_event, options = {}) => {
   const extension = options.extension || (options.format === 'mp3' ? 'mp3' : 'mp4')
   const result = await dialog.showSaveDialog(mainWindow, {
@@ -74,7 +82,7 @@ ipcMain.handle('desktop:choose-export-path', async (_event, options = {}) => {
         : { name: 'MP4 Video', extensions: ['mp4'] },
     ],
   })
-  return result.canceled ? null : result.filePath
+  return result.canceled ? null : ensureExportExtension(result.filePath, extension)
 })
 
 ipcMain.handle('desktop:start-export', async (event, payload) => {
