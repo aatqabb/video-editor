@@ -101,6 +101,9 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
   const start = async () => {
     if (!desktop?.startExport) return notify('Open the Windows desktop build to use real FFmpeg export')
     if (!capabilities?.ffmpeg?.available) return notify('FFmpeg is not bundled/detected yet — export engine cannot start')
+    if (renderMode === 'GPU' && !(capabilities?.ffmpeg?.hardwareEncoders || []).length) {
+      return notify('GPU renderer selected, but no supported H.264 hardware encoder was detected')
+    }
     let path = outputPath
     if (!path) path = await chooseLocation()
     if (!path) return
@@ -154,6 +157,11 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
   const ffmpeg = capabilities?.ffmpeg
   const gpuEncoders = ffmpeg?.hardwareEncoders || []
   const hardwareVideo = capabilities?.gpuFeatureStatus?.video_encode
+  const rendererHint = renderMode === 'CPU'
+    ? 'CPU forces libx264 when available.'
+    : renderMode === 'GPU'
+      ? gpuEncoders.length ? `GPU will use ${gpuEncoders[0]}.` : 'GPU requires a supported NVENC, QSV, or AMF encoder.'
+      : gpuEncoders.length ? `Auto prefers ${gpuEncoders[0]} and falls back to CPU if hardware export fails.` : 'Auto will use CPU when no supported hardware encoder is detected.'
 
   return (
     <div className="export-workspace">
@@ -166,6 +174,7 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
         <label>Quality<select value={quality} onChange={(event) => setQuality(event.target.value)}><option>High</option><option>Balanced</option><option>Low</option></select></label>
         <label>Renderer<select value={renderMode} onChange={(event) => setRenderMode(event.target.value)}><option>Auto</option><option>GPU</option><option>CPU</option></select></label>
       </div>
+      <div className="export-note">{rendererHint}</div>
 
       <div className="export-section-title">GPU / FFMPEG</div>
       <div className="export-capabilities">
