@@ -67,6 +67,47 @@ async function processVideo(file, url) {
   }
 }
 
+function generateWaveformSync(channel, bins = 96) {
+  const block = Math.max(1, Math.floor(channel.length / bins))
+  return Array.from({ length: bins }, (_, index) => {
+    const start = index * block
+    const end = Math.min(channel.length, start + block)
+    let peak = 0
+    const stride = Math.max(1, Math.floor(block / 80))
+    for (let cursor = start; cursor < end; cursor += stride) {
+      peak = Math.max(peak, Math.abs(channel[cursor] || 0))
+    }
+    return Math.max(0.04, Math.min(1, peak))
+  })
+}
+
+function generateWaveformInWorker(channel, bins = 96) {
+  if (typeof Worker === 'undefined') return Promise.resolve(generateWaveformSync(channel, bins))
+
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./waveformWorker.js', import.meta.url), { type: 'module' })
+    const samples = channel.slice()
+    let settled = false
+    const timeout = window.setTimeout(() => finish(new Error('Waveform worker timed out')), 30000)
+
+    const finish = (error, waveform) => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timeout)
+      worker.terminate()
+      if (error) reject(error)
+      else resolve(waveform)
+    }
+
+    worker.onmessage = (event) => {
+      if (event.data?.error) return finish(new Error(event.data.error))
+      finish(null, Array.isArray(event.data?.waveform) ? event.data.waveform : [])
+    }
+    worker.onerror = () => finish(new Error('Waveform worker failed'))
+    worker.postMessage({ samples: samples.buffer, bins }, [samples.buffer])
+  })
+}
+
 async function processAudio(file) {
   const arrayBuffer = await file.arrayBuffer()
   const AudioContext = window.AudioContext || window.webkitAudioContext
@@ -76,17 +117,12 @@ async function processAudio(file) {
   try {
     const buffer = await context.decodeAudioData(arrayBuffer.slice(0))
     const channel = buffer.getChannelData(0)
-    const bins = 96
-    const block = Math.max(1, Math.floor(channel.length / bins))
-    const waveform = Array.from({ length: bins }, (_, index) => {
-      const start = index * block
-      const end = Math.min(channel.length, start + block)
-      let peak = 0
-      for (let cursor = start; cursor < end; cursor += Math.max(1, Math.floor(block / 80))) {
-        peak = Math.max(peak, Math.abs(channel[cursor] || 0))
-      }
-      return Math.max(0.04, Math.min(1, peak))
-    })
+    let waveform
+    try {
+      waveform = await generateWaveformInWorker(channel, 96)
+    } catch {
+      waveform = generateWaveformSync(channel, 96)
+    }
     return { duration: Number.isFinite(buffer.duration) ? buffer.duration : 5, waveform }
   } finally {
     context.close().catch(() => {})
