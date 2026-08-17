@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "verify:gpu": "node scripts/verify-gpu-contract.mjs",
     "desktop": "npm run build && electron ."
   },
   "dependencies": {
