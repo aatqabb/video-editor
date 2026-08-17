@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
+import ScriptWorkspace from './ScriptWorkspace'
 
 const leftTabs = ['Project', 'Effect Controls', 'Effects', 'Tools', 'Text', 'Properties']
 const centerTabs = ['Source', 'Script', 'Stock', 'SFX', 'Transitions', 'Essential Sound']
@@ -261,6 +262,38 @@ function App() {
     notify(`${trackId} ${key} toggled`)
   }
 
+  const addStockToTimeline = (result, sourceLineId, targetTrackId = 'V1', startAt = playhead) => {
+    const preferredTrack = tracks.find((track) => track.id === targetTrackId && track.type === 'video' && !track.locked)
+      || tracks.find((track) => track.type === 'video' && !track.locked)
+
+    if (!preferredTrack) return notify('Unlock a video track before importing stock footage')
+
+    const id = `stock-${result.provider.toLowerCase()}-${result.sourceId}-${Date.now()}`
+    const duration = Math.max(2, Math.min(10, Number(result.duration) || 5))
+    const start = Math.max(0, Math.min(TIMELINE_SECONDS - duration, snapTime(startAt)))
+
+    commitClips((current) => [
+      ...current,
+      {
+        id,
+        trackId: preferredTrack.id,
+        name: `${result.provider}: ${result.title}`,
+        type: 'video',
+        start,
+        duration,
+        color: result.provider === 'Pexels' ? 'cyan' : 'purple',
+        thumbnail: result.thumbnail,
+        remoteUrl: result.fileUrl,
+        pageUrl: result.pageUrl,
+        provider: result.provider,
+        stockId: result.sourceId,
+        sourceLineId,
+      },
+    ])
+    setSelectedClipIds([id])
+    notify(`${result.provider} video added to ${preferredTrack.id}`)
+  }
+
   const startVerticalResize = (side, event) => {
     event.preventDefault()
     const startX = event.clientX
@@ -439,16 +472,10 @@ function App() {
     if (centerTab === 'Source') return <Monitor playing={playing} setPlaying={setPlaying} notify={notify} empty />
     if (centerTab === 'Script') {
       return (
-        <div className="script-panel">
-          <textarea defaultValue={'Paste full script here.\nEach sentence will become its own editable line.'} />
-          <button onClick={() => notify('Script split into editable lines')}>Split into Lines</button>
-          <div className="script-line-demo">
-            <span>1</span>
-            <input defaultValue="example script line" />
-            <input defaultValue="editable stock search query" />
-            <button onClick={() => notify('Pexels + Pixabay search')}>Search</button>
-          </div>
-        </div>
+        <ScriptWorkspace
+          notify={notify}
+          onImportStock={(result, lineId) => addStockToTimeline(result, lineId)}
+        />
       )
     }
     if (centerTab === 'Stock') return <OptionGrid title="PEXELS + PIXABAY" options={['Search Videos', 'Preview Result 1', 'Preview Result 2', 'Preview Result 3', 'Download', 'Drag to Timeline']} onClick={notify} />
@@ -529,6 +556,7 @@ function App() {
           setContextMenu={setContextMenu}
           notify={notify}
           pushHistory={pushHistory}
+          onStockDrop={(result, trackId, startAt) => addStockToTimeline(result, result.sourceLineId, trackId, startAt)}
         />
       </main>
 
@@ -585,7 +613,7 @@ function OptionGrid({ title, options, onClick }) {
   )
 }
 
-function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, clips, setClips, commitClips, selectedClipIds, setSelectedClipIds, playhead, setPlayhead, markers, setMarkers, snapping, snapTime, toggleTrack, onClipSelect, setContextMenu, notify, pushHistory }) {
+function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, clips, setClips, commitClips, selectedClipIds, setSelectedClipIds, playhead, setPlayhead, markers, setMarkers, snapping, snapTime, toggleTrack, onClipSelect, setContextMenu, notify, pushHistory, onStockDrop }) {
   const scrollRef = useRef(null)
   const dragInfoRef = useRef(null)
   const pixelsPerSecond = 22 * (zoom / 100)
@@ -629,13 +657,31 @@ function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, 
     event.preventDefault()
     const targetTrack = tracks.find((track) => track.id === trackId)
     if (targetTrack?.locked) return notify(`${trackId} is locked`)
+
+    const stockPayload = event.dataTransfer.getData('application/x-video-editor-stock')
+    if (stockPayload) {
+      if (targetTrack?.type !== 'video') return notify('Stock video can only be dropped on a video track')
+      try {
+        const result = JSON.parse(stockPayload)
+        onStockDrop(result, trackId, pointerToTime(event))
+      } catch {
+        notify('Could not read stock video data')
+      }
+      return
+    }
+
     const clipId = event.dataTransfer.getData('text/plain') || dragInfoRef.current?.clipId
     const clip = clips.find((item) => item.id === clipId)
     if (!clip) return
-    if (clip.type !== targetTrack.type) return notify(`Drop ${clip.type} clips on ${clip.type} tracks`)
+
+    const isCompatible = clip.type === targetTrack.type
+    if (!isCompatible) return notify(`Drop ${clip.type} clips on ${clip.type} tracks`)
+
     const offset = dragInfoRef.current?.offsetSeconds || 0
     const nextStart = snapTime(pointerToTime(event) - offset, clip.id)
-    commitClips((current) => current.map((item) => item.id === clip.id ? { ...item, trackId, start: Math.max(0, Math.min(TIMELINE_SECONDS - item.duration, nextStart)) } : item))
+    commitClips((current) => current.map((item) => item.id === clip.id
+      ? { ...item, trackId, start: Math.max(0, Math.min(TIMELINE_SECONDS - item.duration, nextStart)) }
+      : item))
     setSelectedClipIds([clip.id])
     notify(`Moved to ${trackId}`)
   }
@@ -742,6 +788,7 @@ function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, 
                     }}
                   >
                     <span className="trim-handle left" onPointerDown={(event) => startTrim(event, clip, 'left')} />
+                    {clip.thumbnail && <span className="clip-thumbnail-strip" style={{ backgroundImage: `url(${clip.thumbnail})` }} aria-hidden="true" />}
                     <span className="clip-name">{clip.name}</span>
                     {clip.type === 'audio' && <span className="waveform-faux" aria-hidden="true" />}
                     <span className="trim-handle right" onPointerDown={(event) => startTrim(event, clip, 'right')} />
