@@ -15,6 +15,7 @@
 .media-drop-zone span{font-size:8px}
 .real-media-grid{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:repeat(3,minmax(90px,1fr));align-content:start;gap:6px;padding:6px 7px 150px}
 .real-media-card{min-width:0;border:1px solid #303034;background:#141416;border-radius:3px;overflow:hidden;cursor:grab}
+.real-media-card:active{cursor:grabbing}
 .real-media-card:hover{border-color:#4b4b53;background:#19191c}
 .real-media-thumb{width:100%;height:74px;position:relative;display:block;padding:0;background:#0b0b0d;overflow:hidden}
 .real-media-thumb img{width:100%;height:100%;display:block;object-fit:cover}
