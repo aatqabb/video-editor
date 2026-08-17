@@ -24,4 +24,7 @@
 .recent-projects-list span{color:#d2d2d6;font-size:9px}
 .recent-projects-list small,.recent-empty{color:#74747b;font-size:8px}
 .recent-empty{padding:6px 2px}
+.project-title{color:#d6d6d8;background:transparent;border:0;padding:2px 6px;border-radius:3px;cursor:pointer}
+.project-title:hover{background:#29292d;color:#fff}
+.monitor-screen.program{flex:0 1 auto;width:calc(100% - 20px);height:auto;max-width:calc(100% - 20px);max-height:calc(100% - 20px);margin:auto;background:#050506}
 @media(max-width:900px){.project-dimensions,.project-file-actions{grid-template-columns:1fr}.project-preset-grid{grid-template-columns:repeat(2,1fr)}}
