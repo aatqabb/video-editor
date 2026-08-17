@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import ScriptWorkspace from './ScriptWorkspace'
+import { EffectsWorkspace, SfxWorkspace, TextWorkspace, TransitionWorkspace } from './CreativePanels'
 
 const leftTabs = ['Project', 'Effect Controls', 'Effects', 'Tools', 'Text', 'Properties']
 const centerTabs = ['Source', 'Script', 'Stock', 'SFX', 'Transitions', 'Essential Sound']
@@ -62,6 +63,75 @@ const MIN_CLIP_DURATION = 0.25
 
 function cloneClips(clips) {
   return clips.map((clip) => ({ ...clip }))
+}
+
+function buildMonitorEffectStyle(effects = []) {
+  const filters = []
+  let boxShadow = ''
+  effects.forEach(({ type, intensity = 50 }) => {
+    if (type === 'Blur') filters.push(`blur(${Math.max(0, intensity / 22)}px)`)
+    if (type === 'Grayscale') filters.push(`grayscale(${intensity}%)`)
+    if (type === 'Brightness') filters.push(`brightness(${60 + intensity * 0.8}%)`)
+    if (type === 'Contrast') filters.push(`contrast(${60 + intensity * 0.9}%)`)
+    if (type === 'Saturate') filters.push(`saturate(${Math.max(0, intensity * 2)}%)`)
+    if (type === 'Sepia') filters.push(`sepia(${intensity}%)`)
+    if (type === 'Hue Rotate') filters.push(`hue-rotate(${intensity * 3.6}deg)`)
+    if (type === 'Vignette') boxShadow = `inset 0 0 ${30 + intensity}px rgba(0,0,0,${Math.min(.85, intensity / 100)})`
+  })
+  return { filter: filters.join(' ') || undefined, boxShadow: boxShadow || undefined }
+}
+
+function getTextOverlayPresentation(clip, playhead) {
+  const style = clip.textStyle || {}
+  const local = Math.max(0, playhead - clip.start)
+  const remaining = Math.max(0, clip.start + clip.duration - playhead)
+  const animDuration = Math.max(.05, Number(style.animationDuration) || .45)
+  let opacity = 1
+  let dx = 0
+  let dy = 0
+  let scale = 1
+  let blur = 0
+
+  const applyAnimation = (name, progress, entering) => {
+    const p = Math.max(0, Math.min(1, progress))
+    const amount = entering ? 1 - p : p
+    if (name.includes('Fade')) opacity = Math.min(opacity, 1 - amount)
+    if (name.includes('Slide Up')) dy = 45 * amount
+    if (name.includes('Slide Down')) dy = -45 * amount
+    if (name.includes('Slide Left')) dx = 65 * amount
+    if (name.includes('Slide Right')) dx = -65 * amount
+    if (name.includes('Zoom In')) scale = .65 + .35 * p
+    if (name.includes('Zoom Out') || name.includes('Shrink')) scale = 1 - .35 * amount
+    if (name.includes('Pop')) scale = .65 + .35 * Math.min(1, p * 1.35)
+    if (name.includes('Blur')) blur = 9 * amount
+  }
+
+  if (style.animationIn && style.animationIn !== 'None' && local < animDuration) applyAnimation(style.animationIn, local / animDuration, true)
+  if (style.animationOut && style.animationOut !== 'None' && remaining < animDuration) applyAnimation(style.animationOut, 1 - remaining / animDuration, false)
+
+  let displayText = clip.text || clip.name
+  if (style.animationIn === 'Typewriter' && local < animDuration) {
+    displayText = displayText.slice(0, Math.max(1, Math.ceil(displayText.length * local / animDuration)))
+  }
+
+  return {
+    text: displayText,
+    style: {
+      left: `${style.x ?? 50}%`,
+      top: `${style.y ?? 50}%`,
+      fontFamily: style.fontFamily || 'Segoe UI',
+      fontSize: `${Math.max(8, Number(style.fontSize) || 64)}px`,
+      color: style.color || '#fff',
+      background: style.background || 'transparent',
+      textAlign: style.align || 'center',
+      fontWeight: style.bold ? 700 : 400,
+      fontStyle: style.italic ? 'italic' : 'normal',
+      textDecoration: style.underline ? 'underline' : 'none',
+      opacity,
+      filter: blur ? `blur(${blur}px)` : undefined,
+      transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px) scale(${scale})`,
+    },
+  }
 }
 
 function App() {
@@ -134,6 +204,8 @@ function App() {
     () => clips.filter((clip) => selectedClipIds.includes(clip.id)),
     [clips, selectedClipIds],
   )
+
+  const selectedTextClip = selectedClips.find((clip) => clip.kind === 'text') || null
 
   const getTrack = (trackId) => tracks.find((track) => track.id === trackId)
 
@@ -260,6 +332,64 @@ function App() {
   const toggleTrack = (trackId, key) => {
     setTracks((current) => current.map((track) => track.id === trackId ? { ...track, [key]: !track[key] } : track))
     notify(`${trackId} ${key} toggled`)
+  }
+
+  const firstUnlockedTrack = (type, preferredId) => tracks.find((track) => track.id === preferredId && track.type === type && !track.locked)
+    || tracks.find((track) => track.type === type && !track.locked)
+
+  const addTextLayer = (draft) => {
+    const track = firstUnlockedTrack('video', 'V3')
+    if (!track) return notify('Unlock a video track before adding text')
+    const id = `text-${Date.now()}`
+    const duration = Math.max(.5, Number(draft.duration) || 5)
+    commitClips((current) => [...current, {
+      id, trackId: track.id, name: draft.text || 'Text', type: 'video', kind: 'text', start: playhead, duration, color: 'title',
+      text: draft.text || 'Text', textStyle: { ...draft },
+    }])
+    setSelectedClipIds([id])
+    notify(`Text layer added to ${track.id}`)
+  }
+
+  const updateTextLayer = (id, draft) => {
+    commitClips((current) => current.map((clip) => clip.id === id ? {
+      ...clip, name: draft.text || clip.name, text: draft.text || clip.text, duration: Math.max(.5, Number(draft.duration) || clip.duration), textStyle: { ...draft },
+    } : clip))
+    notify('Text layer updated')
+  }
+
+  const applyTransition = (type, duration) => {
+    const ids = new Set(selectedClips.filter((clip) => clip.type === 'video' && clip.kind !== 'text').map((clip) => clip.id))
+    if (!ids.size) return notify('Select a video clip first')
+    commitClips((current) => current.map((clip) => ids.has(clip.id) ? { ...clip, transition: { type, duration } } : clip))
+  }
+
+  const applyEffect = (type, intensity) => {
+    const ids = new Set(selectedClips.filter((clip) => clip.type === 'video' && clip.kind !== 'text').map((clip) => clip.id))
+    if (!ids.size) return notify('Select a video clip first')
+    commitClips((current) => current.map((clip) => {
+      if (!ids.has(clip.id)) return clip
+      const effects = (clip.effects || []).filter((effect) => effect.type !== type)
+      return { ...clip, effects: [...effects, { type, intensity }] }
+    }))
+  }
+
+  const resetEffects = () => {
+    const ids = new Set(selectedClips.filter((clip) => clip.type === 'video').map((clip) => clip.id))
+    if (!ids.size) return notify('Select a video clip first')
+    commitClips((current) => current.map((clip) => ids.has(clip.id) ? { ...clip, effects: [] } : clip))
+  }
+
+  const addSfxToTimeline = (sfx, targetTrackId = 'A3', startAt = playhead) => {
+    const track = firstUnlockedTrack('audio', targetTrackId)
+    if (!track) return notify('Unlock an audio track before adding SFX')
+    const duration = Math.max(.1, Math.min(TIMELINE_SECONDS, Number(sfx.duration) || 1))
+    const id = `sfx-${sfx.id}-${Date.now()}`
+    commitClips((current) => [...current, {
+      id, trackId: track.id, name: sfx.name, type: 'audio', kind: 'sfx', start: Math.max(0, Math.min(TIMELINE_SECONDS - duration, startAt)), duration, color: 'orange',
+      sfxId: sfx.id, localUrl: sfx.url || null, customSfx: Boolean(sfx.custom),
+    }])
+    setSelectedClipIds([id])
+    notify(`${sfx.name} added to ${track.id}`)
   }
 
   const addStockToTimeline = (result, sourceLineId, targetTrackId = 'V1', startAt = playhead) => {
@@ -435,7 +565,7 @@ function App() {
     }
 
     if (leftTab === 'Effects') {
-      return <OptionGrid title="VIDEO EFFECTS" options={['Blur', 'Sharpen', 'Vignette', 'Film Grain', 'Exposure', 'Contrast', 'Transform', 'Crop', 'Glow']} onClick={notify} />
+      return <EffectsWorkspace onApply={applyEffect} onReset={resetEffects} notify={notify} />
     }
 
     if (leftTab === 'Tools') {
@@ -455,7 +585,7 @@ function App() {
     }
 
     if (leftTab === 'Text') {
-      return <OptionGrid title="TEXT" options={['Title', 'Subtitle', 'Caption', 'Lower Third', 'Poppins', 'Montserrat', 'Fade In', 'Zoom In', 'Typewriter']} onClick={notify} />
+      return <TextWorkspace selectedTextClip={selectedTextClip} onAddText={addTextLayer} onUpdateText={updateTextLayer} notify={notify} />
     }
 
     return (
@@ -479,8 +609,8 @@ function App() {
       )
     }
     if (centerTab === 'Stock') return <OptionGrid title="PEXELS + PIXABAY" options={['Search Videos', 'Preview Result 1', 'Preview Result 2', 'Preview Result 3', 'Download', 'Drag to Timeline']} onClick={notify} />
-    if (centerTab === 'SFX') return <OptionGrid title="SFX LIBRARY" options={['Whoosh', 'Impact Hit', 'Pop', 'Rise', 'Glitch', 'Bass Drop', 'Swipe', 'Boom', 'Typing']} onClick={notify} />
-    if (centerTab === 'Transitions') return <OptionGrid title="TRANSITIONS" options={['Cross Dissolve', 'Fade', 'Slide', 'Zoom In', 'Zoom Out', 'Light Leak Warm', 'Light Leak Cool', 'Whip Pan', 'Flash']} onClick={notify} />
+    if (centerTab === 'SFX') return <SfxWorkspace onAddSfx={(sfx) => addSfxToTimeline(sfx)} notify={notify} />
+    if (centerTab === 'Transitions') return <TransitionWorkspace onApply={applyTransition} notify={notify} />
     return <OptionGrid title="ESSENTIAL SOUND" options={['Dialogue', 'Music', 'SFX', 'Ambience', 'Volume', 'Fade In', 'Fade Out', 'Auto Ducking']} onClick={notify} />
   }
 
@@ -527,7 +657,7 @@ function App() {
 
           <section className="panel right-panel" style={{ width: `${rightWidth}%` }}>
             <div className="tab-strip"><button className="active" onClick={() => notify('Program monitor')}>Program: Untitled Project</button></div>
-            <div className="panel-body center-body"><Monitor playing={playing} setPlaying={setPlaying} notify={notify} /></div>
+            <div className="panel-body center-body"><Monitor playing={playing} setPlaying={setPlaying} notify={notify} timelineClips={clips} playhead={playhead} /></div>
           </section>
         </section>
 
@@ -557,6 +687,7 @@ function App() {
           notify={notify}
           pushHistory={pushHistory}
           onStockDrop={(result, trackId, startAt) => addStockToTimeline(result, result.sourceLineId, trackId, startAt)}
+          onSfxDrop={(sfx, trackId, startAt) => addSfxToTimeline(sfx, trackId, startAt)}
         />
       </main>
 
@@ -589,10 +720,22 @@ function App() {
   )
 }
 
-function Monitor({ playing, setPlaying, notify, empty = false }) {
+function Monitor({ playing, setPlaying, notify, empty = false, timelineClips = [], playhead = 0 }) {
+  const activeClips = empty ? [] : timelineClips.filter((clip) => playhead >= clip.start && playhead < clip.start + clip.duration)
+  const textClips = activeClips.filter((clip) => clip.kind === 'text')
+  const activeVideo = activeClips.find((clip) => clip.type === 'video' && clip.kind !== 'text')
+  const effectStyle = buildMonitorEffectStyle(activeVideo?.effects || [])
+
   return (
     <div className="monitor">
-      <div className={`monitor-screen ${empty ? 'empty' : 'program'}`}><span>{empty ? 'SOURCE MONITOR' : 'PROGRAM PREVIEW'}</span></div>
+      <div className={`monitor-screen ${empty ? 'empty' : 'program'}`} style={empty ? undefined : effectStyle}>
+        <span>{empty ? 'SOURCE MONITOR' : 'PROGRAM PREVIEW'}</span>
+        {!empty && textClips.map((clip) => {
+          const presentation = getTextOverlayPresentation(clip, playhead)
+          return <div className="program-text-overlay" key={clip.id} style={presentation.style}>{presentation.text}</div>
+        })}
+        {!empty && activeVideo?.transition && <span className="monitor-transition-label">{activeVideo.transition.type} · {activeVideo.transition.duration}s</span>}
+      </div>
       <div className="monitor-info"><span>00:00:05:11</span><button onClick={() => notify('Fit menu')}>Fit ▾</button><button onClick={() => notify('Full resolution')}>Full ▾</button></div>
       <div className="monitor-controls">
         {['|◀', '◀', playing ? '❚❚' : '▶', '▶', '▶|', '▣'].map((label, index) => (
@@ -613,7 +756,7 @@ function OptionGrid({ title, options, onClick }) {
   )
 }
 
-function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, clips, setClips, commitClips, selectedClipIds, setSelectedClipIds, playhead, setPlayhead, markers, setMarkers, snapping, snapTime, toggleTrack, onClipSelect, setContextMenu, notify, pushHistory, onStockDrop }) {
+function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, clips, setClips, commitClips, selectedClipIds, setSelectedClipIds, playhead, setPlayhead, markers, setMarkers, snapping, snapTime, toggleTrack, onClipSelect, setContextMenu, notify, pushHistory, onStockDrop, onSfxDrop }) {
   const scrollRef = useRef(null)
   const dragInfoRef = useRef(null)
   const pixelsPerSecond = 22 * (zoom / 100)
@@ -657,6 +800,17 @@ function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, 
     event.preventDefault()
     const targetTrack = tracks.find((track) => track.id === trackId)
     if (targetTrack?.locked) return notify(`${trackId} is locked`)
+
+    const sfxPayload = event.dataTransfer.getData('application/x-video-editor-sfx')
+    if (sfxPayload) {
+      if (targetTrack?.type !== 'audio') return notify('SFX can only be dropped on an audio track')
+      try {
+        onSfxDrop(JSON.parse(sfxPayload), trackId, pointerToTime(event))
+      } catch {
+        notify('Could not read SFX data')
+      }
+      return
+    }
 
     const stockPayload = event.dataTransfer.getData('application/x-video-editor-stock')
     if (stockPayload) {
@@ -789,6 +943,8 @@ function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, 
                   >
                     <span className="trim-handle left" onPointerDown={(event) => startTrim(event, clip, 'left')} />
                     {clip.thumbnail && <span className="clip-thumbnail-strip" style={{ backgroundImage: `url(${clip.thumbnail})` }} aria-hidden="true" />}
+                    {!!clip.effects?.length && <span className="effect-badge">fx</span>}
+                    {clip.transition && <span className="transition-badge">↔</span>}
                     <span className="clip-name">{clip.name}</span>
                     {clip.type === 'audio' && <span className="waveform-faux" aria-hidden="true" />}
                     <span className="trim-handle right" onPointerDown={(event) => startTrim(event, clip, 'right')} />
