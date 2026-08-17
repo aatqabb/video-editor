@@ -21,7 +21,9 @@
 .voiceover-actions .record-btn{border-color:#6e3232;color:#f0aaaa;background:#2b1818}
 .voiceover-actions .record-btn.active{background:#6a1d1d;color:white;border-color:#9c3838}
 .voiceover-workspace p{color:#77777f;font-size:9px;line-height:1.45;margin:8px 1px}
-.program-video-layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1;overflow:hidden}
+.program-placeholder{position:relative;z-index:0}
+.program-placeholder.hidden{display:none}
+.program-video-layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1;overflow:hidden;transform-origin:center center}
 .program-video-layer img,.program-video-layer video{width:100%;height:100%;display:block;object-position:center}
 .program-video-placeholder{width:72%;height:72%;border:1px dashed rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;color:#7a8491;background:rgba(0,0,0,.18);font-size:10px}
 .audio-fade-indicator{position:absolute;bottom:2px;left:3px;right:3px;height:2px;background:linear-gradient(90deg,transparent,#fff 18%,#fff 82%,transparent);opacity:.35;pointer-events:none}
