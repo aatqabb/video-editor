@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getStockProviderStatus, makeSearchQuery, searchStockVideos, splitScriptText } from './stockApi'
+import './ScriptWorkspace.css'
 
 function makeLine(line, index = 0) {
   return {
