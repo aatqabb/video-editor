@@ -1,0 +1,43 @@
+.creative-panel{height:100%;overflow:auto;padding:7px;background:#171719;color:#d8d8dc;font-size:10px}
+.creative-heading{height:28px;display:flex;align-items:center;gap:7px;border-bottom:1px solid #303034;margin:-7px -7px 7px;padding:0 8px;background:#1b1b1e;position:sticky;top:-7px;z-index:3}
+.creative-heading strong{font-size:10px;letter-spacing:.3px}
+.creative-heading span{margin-left:auto;color:#797980;font-size:9px}
+.creative-heading button{margin-left:auto;height:22px;border:1px solid #38383e;background:#242428;border-radius:3px;padding:0 7px;font-size:9px}
+.creative-row{display:flex;gap:5px;align-items:center;margin-bottom:6px}
+.creative-row.wrap{flex-wrap:wrap}
+.creative-row select,.creative-row input,.creative-grid input,.creative-grid select{height:27px;background:#101012;border:1px solid #36363b;color:#ddd;border-radius:3px;padding:0 6px;min-width:0}
+.creative-row select{flex:1}
+.number-input{width:70px}
+.creative-row button{height:26px;min-width:28px;padding:0 7px;border:1px solid #37373c;background:#242428;border-radius:3px;font-size:9px}
+.creative-row button:hover,.creative-row button.active{background:#2d3540;border-color:#397fbd;color:#fff}
+.color-control{height:26px;display:flex;align-items:center;gap:5px;padding:0 6px;border:1px solid #37373c;background:#242428;border-radius:3px;color:#aaa}
+.color-control input{width:24px;height:18px;padding:0;border:0;background:transparent}
+.text-content-input{width:100%;min-height:55px;resize:vertical;background:#101012;border:1px solid #36363b;color:#e5e5e8;border-radius:3px;padding:6px;margin-bottom:6px;font-size:10px;line-height:1.35}
+.creative-grid{display:grid;gap:5px;margin-bottom:6px}
+.creative-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.creative-grid label{display:grid;gap:3px;color:#898990;font-size:9px}
+.creative-actions{display:flex;gap:5px;margin-top:8px;border-top:1px solid #303034;padding-top:7px}
+.creative-actions button{height:28px;padding:0 9px;border:1px solid #3b3b41;background:#252529;border-radius:3px;font-size:9px}
+.creative-actions button:hover{background:#303035}
+.creative-actions .primary{background:#176ec2;border-color:#287fd0;color:#fff}
+.creative-slider{display:grid;grid-template-columns:auto 1fr 42px;align-items:center;gap:6px;padding:4px 2px 8px;color:#93939a}
+.creative-slider input{width:100%}
+.creative-slider span{text-align:right;font-family:Consolas,monospace;color:#bbb}
+.preset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.preset-grid button{min-height:48px;background:#202024;border:1px solid #34343a;border-radius:3px;padding:5px;font-size:9px;line-height:1.25}
+.preset-grid button:hover{background:#2c2c31;border-color:#4d5662;color:#fff}
+.creative-search{width:100%;height:27px;background:#101012;border:1px solid #36363b;color:#ddd;border-radius:3px;padding:0 7px;margin-bottom:6px}
+.sfx-list{display:grid;gap:4px}
+.sfx-row{height:32px;display:grid;grid-template-columns:27px minmax(0,1fr) 48px 38px;align-items:center;gap:5px;padding:0 5px;background:#1d1d20;border:1px solid #303034;border-radius:3px;cursor:grab}
+.sfx-row:hover{border-color:#48484f;background:#232327}
+.sfx-row small{color:#77777f;font-family:Consolas,monospace;text-align:right;font-size:8px}
+.sfx-row>button{height:22px;border-radius:3px;border:1px solid #37373c;background:#28282c;font-size:8px}
+.sfx-row>button:hover{background:#333338;color:#fff}
+.sfx-play{width:25px;padding:0}
+.program-text-overlay{position:absolute;transform:translate(-50%,-50%);max-width:86%;padding:3px 6px;white-space:pre-wrap;pointer-events:none;z-index:4;line-height:1.08}
+.monitor-screen{position:relative;overflow:hidden}
+.monitor-effect-layer{position:absolute;inset:0;pointer-events:none;z-index:2}
+.transition-badge,.effect-badge{position:absolute;top:2px;z-index:6;border-radius:2px;background:rgba(0,0,0,.7);padding:1px 3px;font-size:7px;color:#eee;pointer-events:none}
+.transition-badge{right:2px}
+.effect-badge{right:24px}
+@media(max-width:900px){.preset-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.creative-grid.two{grid-template-columns:1fr}}
