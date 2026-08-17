@@ -5,6 +5,55 @@ const SEARCH_STOP_WORDS = new Set([
   'to', 'was', 'we', 'were', 'with', 'you', 'your',
 ])
 
+const STORAGE_KEYS = {
+  pexels: 'video-editor.pexels-api-key',
+  pixabay: 'video-editor.pixabay-api-key',
+}
+
+function readStoredKey(name) {
+  try {
+    return window.localStorage.getItem(STORAGE_KEYS[name]) || ''
+  } catch {
+    return ''
+  }
+}
+
+function writeStoredKey(name, value) {
+  try {
+    if (value) window.localStorage.setItem(STORAGE_KEYS[name], value)
+    else window.localStorage.removeItem(STORAGE_KEYS[name])
+  } catch {
+    // Browser storage can be unavailable in private/restricted environments.
+  }
+}
+
+function getPexelsApiKey() {
+  return readStoredKey('pexels') || import.meta.env.VITE_PEXELS_API_KEY || ''
+}
+
+function getPixabayApiKey() {
+  return readStoredKey('pixabay') || import.meta.env.VITE_PIXABAY_API_KEY || ''
+}
+
+export function getStockApiKeys() {
+  return {
+    pexels: getPexelsApiKey(),
+    pixabay: getPixabayApiKey(),
+  }
+}
+
+export function saveStockApiKeys({ pexels = '', pixabay = '' }) {
+  writeStoredKey('pexels', pexels.trim())
+  writeStoredKey('pixabay', pixabay.trim())
+  return getStockProviderStatus()
+}
+
+export function clearStockApiKeys() {
+  writeStoredKey('pexels', '')
+  writeStoredKey('pixabay', '')
+  return getStockProviderStatus()
+}
+
 export function makeSearchQuery(line) {
   const words = line
     .toLowerCase()
@@ -68,13 +117,13 @@ function normalizePixabayVideo(video, query) {
 
 export function getStockProviderStatus() {
   return {
-    pexels: Boolean(import.meta.env.VITE_PEXELS_API_KEY),
-    pixabay: Boolean(import.meta.env.VITE_PIXABAY_API_KEY),
+    pexels: Boolean(getPexelsApiKey()),
+    pixabay: Boolean(getPixabayApiKey()),
   }
 }
 
 export async function fetchPexelsVideos(query) {
-  const apiKey = import.meta.env.VITE_PEXELS_API_KEY
+  const apiKey = getPexelsApiKey()
   if (!apiKey) throw new Error('Pexels API key is not configured')
 
   const response = await fetch(
@@ -88,7 +137,7 @@ export async function fetchPexelsVideos(query) {
 }
 
 export async function fetchPixabayVideos(query) {
-  const apiKey = import.meta.env.VITE_PIXABAY_API_KEY
+  const apiKey = getPixabayApiKey()
   if (!apiKey) throw new Error('Pixabay API key is not configured')
 
   const response = await fetch(
@@ -102,16 +151,16 @@ export async function fetchPixabayVideos(query) {
 
 export async function searchStockVideos(query, provider = 'Both') {
   const tasks = []
-  if (provider !== 'Pixabay' && import.meta.env.VITE_PEXELS_API_KEY) tasks.push(fetchPexelsVideos(query))
-  if (provider !== 'Pexels' && import.meta.env.VITE_PIXABAY_API_KEY) tasks.push(fetchPixabayVideos(query))
+  if (provider !== 'Pixabay' && getPexelsApiKey()) tasks.push(fetchPexelsVideos(query))
+  if (provider !== 'Pexels' && getPixabayApiKey()) tasks.push(fetchPixabayVideos(query))
 
   if (!tasks.length) {
     throw new Error(
       provider === 'Pexels'
-        ? 'Add VITE_PEXELS_API_KEY to .env.local'
+        ? 'Add your Pexels API key in Script → API Keys'
         : provider === 'Pixabay'
-          ? 'Add VITE_PIXABAY_API_KEY to .env.local'
-          : 'Add a Pexels or Pixabay API key to .env.local',
+          ? 'Add your Pixabay API key in Script → API Keys'
+          : 'Add a Pexels or Pixabay API key in Script → API Keys',
     )
   }
 
