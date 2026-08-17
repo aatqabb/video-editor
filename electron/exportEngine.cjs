@@ -234,30 +234,59 @@ function parseFfmpegTime(line) {
   return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3])
 }
 
+function selectedVideoEncoder(args) {
+  const index = args.indexOf('-c:v')
+  return index >= 0 ? args[index + 1] : null
+}
+
 function startExport(manifest, outputPath, onProgress) {
   const capabilities = probeFfmpeg()
   if (!capabilities.available) throw new Error('FFmpeg is not installed or bundled yet')
-  const args = buildExportArgs(manifest, outputPath, capabilities)
+  const initialArgs = buildExportArgs(manifest, outputPath, capabilities)
   const duration = timelineDuration(manifest)
-  const child = spawn(capabilities.binary, args, { windowsHide: true })
-  let stderr = ''
+  const job = { child: null, done: null, args: initialArgs, capabilities }
 
-  child.stderr.on('data', (chunk) => {
-    const text = chunk.toString()
-    stderr = `${stderr}${text}`.slice(-12000)
-    const current = parseFfmpegTime(text)
-    if (current != null) onProgress?.({ current, duration, percent: Math.max(0, Math.min(100, current / duration * 100)) })
-  })
+  const runAttempt = (args) => new Promise((resolve, reject) => {
+    const child = spawn(capabilities.binary, args, { windowsHide: true })
+    job.child = child
+    job.args = args
+    let stderr = ''
 
-  const done = new Promise((resolve, reject) => {
+    child.stderr.on('data', (chunk) => {
+      const text = chunk.toString()
+      stderr = `${stderr}${text}`.slice(-12000)
+      const current = parseFfmpegTime(text)
+      if (current != null) onProgress?.({ current, duration, percent: Math.max(0, Math.min(100, current / duration * 100)) })
+    })
+
     child.on('error', reject)
     child.on('close', (code) => {
-      if (code === 0) resolve({ outputPath, encoder: capabilities.hardwareEncoders[0] || 'CPU' })
+      if (code === 0) resolve({ outputPath, encoder: selectedVideoEncoder(args) || 'audio' })
       else reject(new Error(`FFmpeg export failed (${code}). ${stderr.slice(-1800)}`))
     })
   })
 
-  return { child, done, args, capabilities }
+  job.done = (async () => {
+    try {
+      return await runAttempt(initialArgs)
+    } catch (error) {
+      const initialEncoder = selectedVideoEncoder(initialArgs)
+      const isHardwareAttempt = ['h264_nvenc', 'h264_qsv', 'h264_amf'].includes(initialEncoder)
+      const autoMode = (manifest.options?.renderMode || 'Auto') === 'Auto'
+      const cpuAvailable = capabilities.encoders.includes('libx264')
+      if (!isHardwareAttempt || !autoMode || !cpuAvailable) throw error
+
+      onProgress?.({ current: 0, duration, percent: 0, fallback: 'CPU', message: 'GPU export failed; retrying with CPU' })
+      const cpuManifest = {
+        ...manifest,
+        options: { ...(manifest.options || {}), renderMode: 'CPU' },
+      }
+      const cpuArgs = buildExportArgs(cpuManifest, outputPath, capabilities)
+      return runAttempt(cpuArgs)
+    }
+  })()
+
+  return job
 }
 
 module.exports = {
