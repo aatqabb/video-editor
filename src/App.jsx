@@ -4,22 +4,11 @@ import ScriptWorkspace from './ScriptWorkspace'
 import { EffectsWorkspace, SfxWorkspace, TextWorkspace, TransitionWorkspace } from './CreativePanels'
 import { AudioControls, VideoControls, VoiceoverWorkspace } from './ClipControls'
 import ProjectWorkspace from './ProjectWorkspace'
+import MediaLibrary from './MediaLibrary'
 import { buildProjectDocument, clearAutosave, getRecentProjects, readAutosave, readProjectFile, rememberProject, saveProjectFile, writeAutosave } from './projectPersistence'
 
 const leftTabs = ['Media', 'Project', 'Effect Controls', 'Effects', 'Tools', 'Text', 'Properties']
 const centerTabs = ['Source', 'Script', 'Stock', 'SFX', 'Transitions', 'Essential Sound']
-
-const mediaItems = [
-  ['Voiceover.mp3', '01:09:14', 'audio'],
-  ['Main Sequence', '00:43:24', 'sequence'],
-  ['Music.wav', '03:35:23', 'audio'],
-  ['Black Texture', '05:01', 'image'],
-  ['B-roll 01.mp4', '00:02:22', 'video'],
-  ['B-roll 02.mp4', '00:07:06', 'video'],
-  ['Portrait.png', 'Still', 'image'],
-  ['Adjustment Layer', '00:04:29', 'image'],
-  ['B-roll 03.mp4', '00:06:11', 'video'],
-]
 
 const shortcutRows = [
   ['Space', 'Play / Pause preview'],
@@ -149,7 +138,7 @@ function App() {
   const [toast, setToast] = useState('')
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [playing, setPlaying] = useState(false)
-  const [selectedMedia, setSelectedMedia] = useState(4)
+  const [libraryItems, setLibraryItems] = useState([])
   const [leftWidth, setLeftWidth] = useState(32)
   const [rightWidth, setRightWidth] = useState(33)
   const [timelineHeight, setTimelineHeight] = useState(42)
@@ -168,7 +157,6 @@ function App() {
   const [contextMenu, setContextMenu] = useState(null)
 
   const editorRef = useRef(null)
-  const fileInputRef = useRef(null)
   const toastTimerRef = useRef(null)
 
   const notify = (message) => {
@@ -418,6 +406,38 @@ function App() {
     commitClips((current) => current.map((clip) => ids.has(clip.id) ? { ...clip, effects: [] } : clip))
   }
 
+  const addMediaToTimeline = (media, targetTrackId = null, startAt = playhead) => {
+    const timelineType = media.type === 'audio' ? 'audio' : 'video'
+    const preferred = targetTrackId || (timelineType === 'audio' ? 'A1' : 'V1')
+    const track = firstUnlockedTrack(timelineType, preferred)
+    if (!track) return notify(`Unlock a ${timelineType} track before adding media`)
+
+    const duration = Math.max(.1, Math.min(TIMELINE_SECONDS, Number(media.duration) || (media.type === 'image' ? 5 : 3)))
+    const id = `local-${media.id}-${Date.now()}`
+    const start = Math.max(0, Math.min(TIMELINE_SECONDS - duration, snapTime(startAt)))
+    commitClips((current) => [...current, {
+      id,
+      trackId: track.id,
+      name: media.name,
+      type: timelineType,
+      kind: media.type === 'image' ? 'image' : 'local-media',
+      start,
+      duration,
+      sourceDuration: duration,
+      color: timelineType === 'audio' ? 'green' : media.type === 'image' ? 'purple' : 'blue',
+      localUrl: media.localUrl,
+      thumbnail: media.thumbnail || null,
+      waveform: media.waveform || [],
+      width: media.width || 0,
+      height: media.height || 0,
+      sourceFileName: media.sourceFileName || media.name,
+      mimeType: media.mimeType || '',
+      audio: timelineType === 'audio' ? { volume: 100, fadeIn: 0, fadeOut: 0 } : undefined,
+    }])
+    setSelectedClipIds([id])
+    notify(`${media.name} added to ${track.id}`)
+  }
+
   const addSfxToTimeline = (sfx, targetTrackId = 'A3', startAt = playhead) => {
     const track = firstUnlockedTrack('audio', targetTrackId)
     if (!track) return notify('Unlock an audio track before adding SFX')
@@ -638,31 +658,12 @@ function App() {
   const renderLeftBody = () => {
     if (leftTab === 'Media') {
       return (
-        <>
-          <div className="project-row">
-            <button className="small-icon" onClick={() => notify('Project bin opened')}>▣</button>
-            <span>Untitled Project</span>
-            <span className="item-count">17 items</span>
-          </div>
-          <div className="project-search-row">
-            <input placeholder="Search project" />
-            <button onClick={() => fileInputRef.current?.click()}>＋</button>
-            <input ref={fileInputRef} type="file" multiple hidden onChange={() => notify('Media selected for import')} />
-          </div>
-          <div className="media-grid">
-            {mediaItems.map(([name, meta, type], index) => (
-              <button
-                key={name}
-                className={`media-card ${selectedMedia === index ? 'selected' : ''}`}
-                onClick={() => { setSelectedMedia(index); notify(`${name} selected`) }}
-              >
-                <div className={`media-thumb ${type}`}><span>{type === 'audio' ? '▥' : type === 'sequence' ? '▦' : '▶'}</span></div>
-                <div className="media-name">{name}</div>
-                <div className="media-meta">{meta}</div>
-              </button>
-            ))}
-          </div>
-        </>
+        <MediaLibrary
+          items={libraryItems}
+          setItems={setLibraryItems}
+          onAddMedia={(media) => addMediaToTimeline(media)}
+          notify={notify}
+        />
       )
     }
 
@@ -807,6 +808,7 @@ function App() {
           pushHistory={pushHistory}
           onStockDrop={(result, trackId, startAt) => addStockToTimeline(result, result.sourceLineId, trackId, startAt)}
           onSfxDrop={(sfx, trackId, startAt) => addSfxToTimeline(sfx, trackId, startAt)}
+          onMediaDrop={(media, trackId, startAt) => addMediaToTimeline(media, trackId, startAt)}
         />
       </main>
 
@@ -902,7 +904,7 @@ function OptionGrid({ title, options, onClick }) {
   )
 }
 
-function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, clips, setClips, commitClips, selectedClipIds, setSelectedClipIds, playhead, setPlayhead, markers, setMarkers, snapping, snapTime, toggleTrack, onClipSelect, setContextMenu, notify, pushHistory, onStockDrop, onSfxDrop }) {
+function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, clips, setClips, commitClips, selectedClipIds, setSelectedClipIds, playhead, setPlayhead, markers, setMarkers, snapping, snapTime, toggleTrack, onClipSelect, setContextMenu, notify, pushHistory, onStockDrop, onSfxDrop, onMediaDrop }) {
   const scrollRef = useRef(null)
   const dragInfoRef = useRef(null)
   const pixelsPerSecond = 22 * (zoom / 100)
@@ -946,6 +948,19 @@ function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, 
     event.preventDefault()
     const targetTrack = tracks.find((track) => track.id === trackId)
     if (targetTrack?.locked) return notify(`${trackId} is locked`)
+
+    const mediaPayload = event.dataTransfer.getData('application/x-video-editor-media')
+    if (mediaPayload) {
+      try {
+        const media = JSON.parse(mediaPayload)
+        const timelineType = media.type === 'audio' ? 'audio' : 'video'
+        if (targetTrack?.type !== timelineType) return notify(`Drop ${timelineType} media on a ${timelineType} track`)
+        onMediaDrop(media, trackId, pointerToTime(event))
+      } catch {
+        notify('Could not read imported media data')
+      }
+      return
+    }
 
     const sfxPayload = event.dataTransfer.getData('application/x-video-editor-sfx')
     if (sfxPayload) {
@@ -1094,7 +1109,11 @@ function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, 
                     {clip.video?.freezeFrame && <span className="freeze-badge">❄</span>}
                     <span className="clip-name">{clip.name}</span>
                     {clip.type === 'audio' && ((clip.audio?.fadeIn || 0) > 0 || (clip.audio?.fadeOut || 0) > 0) && <span className="audio-fade-indicator" />}
-                    {clip.type === 'audio' && <span className="waveform-faux" aria-hidden="true" />}
+                    {clip.type === 'audio' && clip.waveform?.length ? (
+                      <span className="timeline-waveform-real" aria-hidden="true">
+                        {clip.waveform.slice(0, 72).map((peak, index) => <i key={index} style={{ height: `${Math.max(8, peak * 92)}%` }} />)}
+                      </span>
+                    ) : clip.type === 'audio' ? <span className="waveform-faux" aria-hidden="true" /> : null}
                     <span className="trim-handle right" onPointerDown={(event) => startTrim(event, clip, 'right')} />
                   </button>
                 ))}
