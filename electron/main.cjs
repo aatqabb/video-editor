@@ -1,6 +1,9 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron/main')
+const fs = require('node:fs')
 const path = require('node:path')
 const { probeFfmpeg, startExport } = require('./exportEngine.cjs')
+
+if (require('electron-squirrel-startup')) app.quit()
 
 let mainWindow = null
 let activeExport = null
@@ -102,6 +105,17 @@ ipcMain.handle('desktop:cancel-export', async () => {
   return true
 })
 
+ipcMain.handle('desktop:save-temp-media', async (_event, payload = {}) => {
+  const bytes = payload.bytes
+  if (!bytes) throw new Error('No media bytes received')
+  const extension = String(payload.extension || 'webm').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'webm'
+  const tempDir = path.join(app.getPath('userData'), 'temp-media')
+  fs.mkdirSync(tempDir, { recursive: true })
+  const filePath = path.join(tempDir, `${Date.now()}-${Math.random().toString(16).slice(2, 8)}.${extension}`)
+  fs.writeFileSync(filePath, Buffer.from(bytes))
+  return filePath
+})
+
 ipcMain.handle('desktop:choose-project-path', async (_event, defaultName = 'Untitled Project.vedit.json') => {
   const result = await dialog.showSaveDialog(mainWindow, {
     title: 'Save VideoEditor Project',
@@ -121,7 +135,7 @@ ipcMain.handle('desktop:show-open-project', async () => {
 })
 
 app.whenReady().then(() => {
-  app.setAppUserModelId('com.videoeditor.app')
+  app.setAppUserModelId('com.squirrel.VideoEditor.VideoEditor')
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
