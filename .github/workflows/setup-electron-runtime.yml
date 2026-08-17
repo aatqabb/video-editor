@@ -1,0 +1,36 @@
+name: Setup Electron Runtime
+
+on:
+  push:
+    paths:
+      - 'scripts/setup-electron-runtime.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Add Electron 43 stable
+        run: |
+          npm install --save-dev electron@43.2.0
+          npm pkg set main=electron/main.cjs
+          npm pkg set scripts.desktop="npm run build && electron ."
+      - name: Commit package updates
+        run: |
+          git config user.name "aatqabb"
+          git config user.email "aatqagillani@gmail.com"
+          git add package.json package-lock.json
+          git commit -m "Add Electron 43 desktop runtime"
+          git push
