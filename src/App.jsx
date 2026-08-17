@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 
 const leftTabs = ['Project', 'Effect Controls', 'Effects', 'Tools', 'Text', 'Properties']
@@ -16,7 +16,7 @@ const mediaItems = [
   ['B-roll 03.mp4', '00:06:11', 'video'],
 ]
 
-const shortcuts = [
+const shortcutRows = [
   ['Space', 'Play / Pause preview'],
   ['V', 'Cursor / Selection tool'],
   ['C', 'Cut / Razor tool'],
@@ -30,9 +30,38 @@ const shortcuts = [
   ['← / →', 'Move playhead frame by frame'],
   ['Ctrl + Z', 'Undo'],
   ['Ctrl + Shift + Z', 'Redo'],
+  ['Ctrl + C / V', 'Copy / paste selected clips'],
+  ['Ctrl + D', 'Duplicate selected clips'],
   ['Ctrl + S', 'Save project'],
-  ['Ctrl + D', 'Duplicate selected clip'],
 ]
+
+const initialTracks = [
+  { id: 'V5', type: 'video', locked: false, hidden: false, muted: false, solo: false },
+  { id: 'V4', type: 'video', locked: false, hidden: false, muted: false, solo: false },
+  { id: 'V3', type: 'video', locked: false, hidden: false, muted: false, solo: false },
+  { id: 'V2', type: 'video', locked: false, hidden: false, muted: false, solo: false },
+  { id: 'V1', type: 'video', locked: false, hidden: false, muted: false, solo: false },
+  { id: 'A1', type: 'audio', locked: false, hidden: false, muted: false, solo: false },
+  { id: 'A2', type: 'audio', locked: false, hidden: false, muted: false, solo: false },
+  { id: 'A3', type: 'audio', locked: false, hidden: false, muted: false, solo: false },
+]
+
+const initialClips = [
+  { id: 'clip-title', trackId: 'V3', name: 'Title', type: 'video', start: 11.2, duration: 3.4, color: 'title' },
+  { id: 'clip-v2a', trackId: 'V2', name: 'B-roll 01.mp4', type: 'video', start: 5.4, duration: 5.3, color: 'purple' },
+  { id: 'clip-v2b', trackId: 'V2', name: 'B-roll 02.mp4', type: 'video', start: 11, duration: 4.6, color: 'purple' },
+  { id: 'clip-v1a', trackId: 'V1', name: 'Interview.mp4', type: 'video', start: 4, duration: 7, color: 'blue' },
+  { id: 'clip-v1b', trackId: 'V1', name: 'Stock Clip.mp4', type: 'video', start: 11.2, duration: 3.7, color: 'cyan' },
+  { id: 'clip-a1', trackId: 'A1', name: 'Voiceover.mp3', type: 'audio', start: 4, duration: 17, color: 'green' },
+  { id: 'clip-a2', trackId: 'A2', name: 'Music.wav', type: 'audio', start: 4, duration: 17, color: 'yellow' },
+]
+
+const TIMELINE_SECONDS = 120
+const MIN_CLIP_DURATION = 0.25
+
+function cloneClips(clips) {
+  return clips.map((clip) => ({ ...clip }))
+}
 
 function App() {
   const [leftTab, setLeftTab] = useState('Project')
@@ -41,18 +70,195 @@ function App() {
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [playing, setPlaying] = useState(false)
   const [selectedMedia, setSelectedMedia] = useState(4)
-  const [selectedClip, setSelectedClip] = useState('clip-v1')
   const [leftWidth, setLeftWidth] = useState(32)
   const [rightWidth, setRightWidth] = useState(33)
   const [timelineHeight, setTimelineHeight] = useState(42)
+
+  const [tracks, setTracks] = useState(initialTracks)
+  const [clips, setClips] = useState(initialClips)
+  const [selectedClipIds, setSelectedClipIds] = useState(['clip-v1a'])
+  const [playhead, setPlayhead] = useState(7.2)
   const [zoom, setZoom] = useState(100)
+  const [trackHeight, setTrackHeight] = useState(38)
+  const [snapping, setSnapping] = useState(true)
+  const [markers, setMarkers] = useState([15.5])
+  const [history, setHistory] = useState([])
+  const [future, setFuture] = useState([])
+  const [copiedClips, setCopiedClips] = useState([])
+  const [contextMenu, setContextMenu] = useState(null)
+
   const editorRef = useRef(null)
   const fileInputRef = useRef(null)
+  const toastTimerRef = useRef(null)
 
   const notify = (message) => {
     setToast(message)
-    window.clearTimeout(window.__videoEditorToast)
-    window.__videoEditorToast = window.setTimeout(() => setToast(''), 1400)
+    window.clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = window.setTimeout(() => setToast(''), 1400)
+  }
+
+  const pushHistory = (snapshot) => {
+    setHistory((items) => [...items.slice(-49), cloneClips(snapshot)])
+    setFuture([])
+  }
+
+  const commitClips = (updater) => {
+    setClips((current) => {
+      const next = typeof updater === 'function' ? updater(current) : updater
+      if (next === current) return current
+      pushHistory(current)
+      return next
+    })
+  }
+
+  const undo = () => {
+    if (!history.length) return notify('Nothing to undo')
+    const previous = history[history.length - 1]
+    setFuture((items) => [cloneClips(clips), ...items].slice(0, 50))
+    setClips(cloneClips(previous))
+    setHistory((items) => items.slice(0, -1))
+    notify('Undo')
+  }
+
+  const redo = () => {
+    if (!future.length) return notify('Nothing to redo')
+    const next = future[0]
+    setHistory((items) => [...items, cloneClips(clips)].slice(-50))
+    setClips(cloneClips(next))
+    setFuture((items) => items.slice(1))
+    notify('Redo')
+  }
+
+  const selectedClips = useMemo(
+    () => clips.filter((clip) => selectedClipIds.includes(clip.id)),
+    [clips, selectedClipIds],
+  )
+
+  const getTrack = (trackId) => tracks.find((track) => track.id === trackId)
+
+  const snapTime = (value, movingClipId = null) => {
+    const clamped = Math.max(0, Math.min(TIMELINE_SECONDS, value))
+    if (!snapping) return clamped
+
+    const candidates = [playhead, ...markers]
+    clips.forEach((clip) => {
+      if (clip.id === movingClipId) return
+      candidates.push(clip.start, clip.start + clip.duration)
+    })
+
+    const nearby = candidates
+      .map((candidate) => ({ candidate, distance: Math.abs(candidate - clamped) }))
+      .sort((a, b) => a.distance - b.distance)[0]
+
+    if (nearby && nearby.distance <= 0.18) return nearby.candidate
+    return Math.round(clamped * 2) / 2
+  }
+
+  const deleteSelected = () => {
+    if (!selectedClipIds.length) return notify('No clip selected')
+    const deletable = selectedClips.filter((clip) => !getTrack(clip.trackId)?.locked)
+    if (!deletable.length) return notify('Selected track is locked')
+    const ids = new Set(deletable.map((clip) => clip.id))
+    commitClips((current) => current.filter((clip) => !ids.has(clip.id)))
+    setSelectedClipIds([])
+    notify('Selected clip deleted')
+  }
+
+  const splitAtPlayhead = () => {
+    const targets = selectedClips.filter((clip) => {
+      const locked = getTrack(clip.trackId)?.locked
+      return !locked && playhead > clip.start + MIN_CLIP_DURATION && playhead < clip.start + clip.duration - MIN_CLIP_DURATION
+    })
+    if (!targets.length) return notify('Move playhead inside a selected clip')
+
+    const targetIds = new Set(targets.map((clip) => clip.id))
+    const createdIds = []
+    commitClips((current) => {
+      const next = []
+      current.forEach((clip) => {
+        if (!targetIds.has(clip.id)) {
+          next.push(clip)
+          return
+        }
+        const leftDuration = playhead - clip.start
+        const rightDuration = clip.duration - leftDuration
+        const rightId = `${clip.id}-split-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`
+        createdIds.push(rightId)
+        next.push(
+          { ...clip, duration: leftDuration },
+          { ...clip, id: rightId, name: `${clip.name} (2)`, start: playhead, duration: rightDuration },
+        )
+      })
+      return next
+    })
+    setSelectedClipIds([...targetIds, ...createdIds])
+    notify('Clip split at playhead')
+  }
+
+  const trimSelectedToPlayhead = (direction) => {
+    const targets = selectedClips.filter((clip) => {
+      const locked = getTrack(clip.trackId)?.locked
+      return !locked && playhead > clip.start && playhead < clip.start + clip.duration
+    })
+    if (!targets.length) return notify('Playhead must be inside selected clip')
+
+    const ids = new Set(targets.map((clip) => clip.id))
+    commitClips((current) => current.map((clip) => {
+      if (!ids.has(clip.id)) return clip
+      const end = clip.start + clip.duration
+      if (direction === 'backward') {
+        return { ...clip, start: playhead, duration: Math.max(MIN_CLIP_DURATION, end - playhead) }
+      }
+      return { ...clip, duration: Math.max(MIN_CLIP_DURATION, playhead - clip.start) }
+    }))
+    notify(direction === 'backward' ? 'Backward cut to playhead' : 'Forward cut to playhead')
+  }
+
+  const duplicateSelected = () => {
+    if (!selectedClips.length) return notify('No clip selected')
+    const now = Date.now()
+    const duplicates = selectedClips
+      .filter((clip) => !getTrack(clip.trackId)?.locked)
+      .map((clip, index) => ({
+        ...clip,
+        id: `${clip.id}-copy-${now}-${index}`,
+        name: `${clip.name} copy`,
+        start: snapTime(clip.start + 0.5, clip.id),
+      }))
+    if (!duplicates.length) return notify('Selected track is locked')
+    commitClips((current) => [...current, ...duplicates])
+    setSelectedClipIds(duplicates.map((clip) => clip.id))
+    notify('Clip duplicated')
+  }
+
+  const copySelected = () => {
+    if (!selectedClips.length) return notify('No clip selected')
+    setCopiedClips(cloneClips(selectedClips))
+    notify(`${selectedClips.length} clip${selectedClips.length > 1 ? 's' : ''} copied`)
+  }
+
+  const pasteCopied = () => {
+    if (!copiedClips.length) return notify('Clipboard is empty')
+    const earliest = Math.min(...copiedClips.map((clip) => clip.start))
+    const now = Date.now()
+    const pasted = copiedClips.map((clip, index) => ({
+      ...clip,
+      id: `${clip.id}-paste-${now}-${index}`,
+      start: snapTime(playhead + (clip.start - earliest), clip.id),
+    }))
+    commitClips((current) => [...current, ...pasted])
+    setSelectedClipIds(pasted.map((clip) => clip.id))
+    notify('Clips pasted at playhead')
+  }
+
+  const addMarker = () => {
+    setMarkers((items) => [...items, playhead].sort((a, b) => a - b))
+    notify('Marker added')
+  }
+
+  const toggleTrack = (trackId, key) => {
+    setTracks((current) => current.map((track) => track.id === trackId ? { ...track, [key]: !track[key] } : track))
+    notify(`${trackId} ${key} toggled`)
   }
 
   const startVerticalResize = (side, event) => {
@@ -81,50 +287,88 @@ function App() {
     event.preventDefault()
     const startY = event.clientY
     const startHeight = timelineHeight
+
     const onMove = (moveEvent) => {
       const delta = ((startY - moveEvent.clientY) / window.innerHeight) * 100
       setTimelineHeight(Math.min(70, Math.max(25, startHeight + delta)))
     }
+
     const onUp = () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
+
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
+  }
+
+  const onClipSelect = (event, clipId) => {
+    event.stopPropagation()
+    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+      setSelectedClipIds((ids) => ids.includes(clipId) ? ids.filter((id) => id !== clipId) : [...ids, clipId])
+    } else {
+      setSelectedClipIds([clipId])
+    }
+    setContextMenu(null)
   }
 
   useEffect(() => {
     const onKeyDown = (event) => {
       const tag = event.target?.tagName?.toLowerCase()
       if (['input', 'textarea', 'select'].includes(tag)) return
-      if (event.key === 'Escape') setShowShortcuts(false)
+
+      if (event.key === 'Escape') {
+        setShowShortcuts(false)
+        setContextMenu(null)
+      }
       if (event.code === 'Space') {
         event.preventDefault()
         setPlaying((value) => !value)
       }
       if (event.key.toLowerCase() === 'v') notify('Cursor tool active')
       if (event.key.toLowerCase() === 'c') notify('Cut tool active')
-      if (event.key.toLowerCase() === 'q') notify('Backward cut to playhead')
-      if (event.key.toLowerCase() === 'w') notify('Forward cut to playhead')
-      if (event.key.toLowerCase() === 'k') notify('Split clip at playhead')
-      if (event.key.toLowerCase() === 'm') notify('Marker added')
-      if (event.key === 'Delete') notify('Selected clip deleted')
+      if (event.key.toLowerCase() === 'q') trimSelectedToPlayhead('backward')
+      if (event.key.toLowerCase() === 'w') trimSelectedToPlayhead('forward')
+      if (event.key.toLowerCase() === 'k') splitAtPlayhead()
+      if (event.key.toLowerCase() === 'm') addMarker()
+      if (event.key === 'Delete') deleteSelected()
+
+      if (event.key === '+' || event.key === '=') setZoom((value) => Math.min(180, value + 10))
+      if (event.key === '-') setZoom((value) => Math.max(60, value - 10))
+      if (event.key === '[') setTrackHeight((value) => Math.max(28, value - 4))
+      if (event.key === ']') setTrackHeight((value) => Math.min(76, value + 4))
+      if (event.key === 'ArrowLeft') setPlayhead((value) => Math.max(0, value - (event.shiftKey ? 1 : 1 / 30)))
+      if (event.key === 'ArrowRight') setPlayhead((value) => Math.min(TIMELINE_SECONDS, value + (event.shiftKey ? 1 : 1 / 30)))
+
+      if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === 'z') {
+        event.preventDefault()
+        undo()
+      }
+      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'z') {
+        event.preventDefault()
+        redo()
+      }
+      if (event.ctrlKey && event.key.toLowerCase() === 'c') {
+        event.preventDefault()
+        copySelected()
+      }
+      if (event.ctrlKey && event.key.toLowerCase() === 'v') {
+        event.preventDefault()
+        pasteCopied()
+      }
+      if (event.ctrlKey && event.key.toLowerCase() === 'd') {
+        event.preventDefault()
+        duplicateSelected()
+      }
       if (event.ctrlKey && event.key.toLowerCase() === 's') {
         event.preventDefault()
         notify('Project saved')
       }
-      if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === 'z') {
-        event.preventDefault()
-        notify('Undo')
-      }
-      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'z') {
-        event.preventDefault()
-        notify('Redo')
-      }
     }
+
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  })
 
   const renderLeftBody = () => {
     if (leftTab === 'Project') {
@@ -162,7 +406,19 @@ function App() {
     }
 
     if (leftTab === 'Tools') {
-      return <OptionGrid title="EDITING TOOLS" options={['Cursor (V)', 'Cut (C)', 'Backward Cut (Q)', 'Forward Cut (W)', 'Marker (M)', 'Freeze Frame']} onClick={notify} />
+      return (
+        <div className="option-panel">
+          <div className="section-label">EDITING TOOLS</div>
+          <div className="option-grid">
+            <button onClick={() => notify('Cursor tool active')}>Cursor (V)</button>
+            <button onClick={splitAtPlayhead}>Split (K)</button>
+            <button onClick={() => trimSelectedToPlayhead('backward')}>Backward Cut (Q)</button>
+            <button onClick={() => trimSelectedToPlayhead('forward')}>Forward Cut (W)</button>
+            <button onClick={addMarker}>Marker (M)</button>
+            <button className={snapping ? 'option-active' : ''} onClick={() => { setSnapping((value) => !value); notify(`Snapping ${snapping ? 'off' : 'on'}`) }}>Snap {snapping ? 'On' : 'Off'}</button>
+          </div>
+        </div>
+      )
     }
 
     if (leftTab === 'Text') {
@@ -172,22 +428,25 @@ function App() {
     return (
       <div className="property-body">
         <div className="section-label">{leftTab.toUpperCase()}</div>
-        {['Position X / Y', 'Scale 100%', 'Rotation 0°', 'Opacity 100%', 'Speed 1.0x'].map((item) => <button key={item} onClick={() => notify(item)}>{item}</button>)}
+        {['Position X / Y', 'Scale 100%', 'Rotation 0°', 'Opacity 100%', 'Speed 1.0x'].map((item) => (
+          <button key={item} onClick={() => notify(item)}>{item}</button>
+        ))}
       </div>
     )
   }
 
   const renderCenterBody = () => {
-    if (centerTab === 'Source') {
-      return <Monitor title="Source: (no clips)" playing={playing} setPlaying={setPlaying} notify={notify} empty />
-    }
+    if (centerTab === 'Source') return <Monitor playing={playing} setPlaying={setPlaying} notify={notify} empty />
     if (centerTab === 'Script') {
       return (
         <div className="script-panel">
           <textarea defaultValue={'Paste full script here.\nEach sentence will become its own editable line.'} />
           <button onClick={() => notify('Script split into editable lines')}>Split into Lines</button>
           <div className="script-line-demo">
-            <span>1</span><input defaultValue="example script line" /><input defaultValue="editable stock search query" /><button onClick={() => notify('Pexels + Pixabay search')}>Search</button>
+            <span>1</span>
+            <input defaultValue="example script line" />
+            <input defaultValue="editable stock search query" />
+            <button onClick={() => notify('Pexels + Pixabay search')}>Search</button>
           </div>
         </div>
       )
@@ -199,11 +458,13 @@ function App() {
   }
 
   return (
-    <div className="editor" ref={editorRef}>
+    <div className="editor" ref={editorRef} onMouseDown={() => contextMenu && setContextMenu(null)}>
       <header className="topbar">
         <button className="home-btn" onClick={() => notify('Home')}>⌂</button>
         <nav className="workspace-nav">
-          {['Import', 'Edit', 'Export'].map((item) => <button key={item} className={item === 'Edit' ? 'active' : ''} onClick={() => notify(`${item} workspace`)}>{item}</button>)}
+          {['Import', 'Edit', 'Export'].map((item) => (
+            <button key={item} className={item === 'Edit' ? 'active' : ''} onClick={() => notify(`${item} workspace`)}>{item}</button>
+          ))}
         </nav>
         <div className="project-title">Untitled Project</div>
         <div className="top-actions">
@@ -217,7 +478,9 @@ function App() {
         <section className="upper-workspace" style={{ height: `${100 - timelineHeight}%` }}>
           <section className="panel left-panel" style={{ width: `${leftWidth}%` }}>
             <div className="tab-strip">
-              {leftTabs.map((tab) => <button key={tab} className={leftTab === tab ? 'active' : ''} onClick={() => setLeftTab(tab)}>{tab}</button>)}
+              {leftTabs.map((tab) => (
+                <button key={tab} className={leftTab === tab ? 'active' : ''} onClick={() => setLeftTab(tab)}>{tab}</button>
+              ))}
             </div>
             <div className="panel-body">{renderLeftBody()}</div>
           </section>
@@ -226,7 +489,9 @@ function App() {
 
           <section className="panel center-panel">
             <div className="tab-strip">
-              {centerTabs.map((tab) => <button key={tab} className={centerTab === tab ? 'active' : ''} onClick={() => setCenterTab(tab)}>{tab}</button>)}
+              {centerTabs.map((tab) => (
+                <button key={tab} className={centerTab === tab ? 'active' : ''} onClick={() => setCenterTab(tab)}>{tab}</button>
+              ))}
             </div>
             <div className="panel-body center-body">{renderCenterBody()}</div>
           </section>
@@ -235,7 +500,7 @@ function App() {
 
           <section className="panel right-panel" style={{ width: `${rightWidth}%` }}>
             <div className="tab-strip"><button className="active" onClick={() => notify('Program monitor')}>Program: Untitled Project</button></div>
-            <div className="panel-body center-body"><Monitor title="Program" playing={playing} setPlaying={setPlaying} notify={notify} /></div>
+            <div className="panel-body center-body"><Monitor playing={playing} setPlaying={setPlaying} notify={notify} /></div>
           </section>
         </section>
 
@@ -245,20 +510,49 @@ function App() {
           height={timelineHeight}
           zoom={zoom}
           setZoom={setZoom}
-          selectedClip={selectedClip}
-          setSelectedClip={setSelectedClip}
+          trackHeight={trackHeight}
+          setTrackHeight={setTrackHeight}
+          tracks={tracks}
+          clips={clips}
+          setClips={setClips}
+          commitClips={commitClips}
+          selectedClipIds={selectedClipIds}
+          setSelectedClipIds={setSelectedClipIds}
+          playhead={playhead}
+          setPlayhead={setPlayhead}
+          markers={markers}
+          setMarkers={setMarkers}
+          snapping={snapping}
+          snapTime={snapTime}
+          toggleTrack={toggleTrack}
+          onClipSelect={onClipSelect}
+          setContextMenu={setContextMenu}
           notify={notify}
+          pushHistory={pushHistory}
         />
       </main>
 
-      <footer className="statusbar"><span>Ready</span><span>GPU: Auto</span><span>Preview: 1/2</span><span>Tool: Cursor</span></footer>
+      <footer className="statusbar">
+        <span>Ready</span><span>GPU: Auto</span><span>Preview: 1/2</span><span>Snap: {snapping ? 'On' : 'Off'}</span><span>Selected: {selectedClipIds.length}</span>
+      </footer>
 
       {showShortcuts && (
         <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setShowShortcuts(false)}>
           <div className="shortcut-modal">
             <div className="modal-head"><strong>⌨ Keyboard Shortcuts</strong><button onClick={() => setShowShortcuts(false)}>✕ Close</button></div>
-            {shortcuts.map(([key, description]) => <div className="shortcut-row" key={key}><kbd>{key}</kbd><span>{description}</span></div>)}
+            {shortcutRows.map(([key, description]) => (
+              <div className="shortcut-row" key={key}><kbd>{key}</kbd><span>{description}</span></div>
+            ))}
           </div>
+        </div>
+      )}
+
+      {contextMenu && (
+        <div className="clip-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onMouseDown={(event) => event.stopPropagation()}>
+          <button onClick={() => { splitAtPlayhead(); setContextMenu(null) }}>Split at Playhead</button>
+          <button onClick={() => { duplicateSelected(); setContextMenu(null) }}>Duplicate</button>
+          <button onClick={() => { copySelected(); setContextMenu(null) }}>Copy</button>
+          <button onClick={() => { deleteSelected(); setContextMenu(null) }}>Delete</button>
         </div>
       )}
 
@@ -270,9 +564,7 @@ function App() {
 function Monitor({ playing, setPlaying, notify, empty = false }) {
   return (
     <div className="monitor">
-      <div className={`monitor-screen ${empty ? 'empty' : 'program'}`}>
-        <span>{empty ? 'SOURCE MONITOR' : 'PROGRAM PREVIEW'}</span>
-      </div>
+      <div className={`monitor-screen ${empty ? 'empty' : 'program'}`}><span>{empty ? 'SOURCE MONITOR' : 'PROGRAM PREVIEW'}</span></div>
       <div className="monitor-info"><span>00:00:05:11</span><button onClick={() => notify('Fit menu')}>Fit ▾</button><button onClick={() => notify('Full resolution')}>Full ▾</button></div>
       <div className="monitor-controls">
         {['|◀', '◀', playing ? '❚❚' : '▶', '▶', '▶|', '▣'].map((label, index) => (
@@ -293,40 +585,168 @@ function OptionGrid({ title, options, onClick }) {
   )
 }
 
-function Timeline({ height, zoom, setZoom, selectedClip, setSelectedClip, notify }) {
-  const tracks = ['V5', 'V4', 'V3', 'V2', 'V1', 'A1', 'A2', 'A3']
+function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, clips, setClips, commitClips, selectedClipIds, setSelectedClipIds, playhead, setPlayhead, markers, setMarkers, snapping, snapTime, toggleTrack, onClipSelect, setContextMenu, notify, pushHistory }) {
+  const scrollRef = useRef(null)
+  const dragInfoRef = useRef(null)
+  const pixelsPerSecond = 22 * (zoom / 100)
+  const laneWidth = TIMELINE_SECONDS * pixelsPerSecond
+
+  const pointerToTime = (event) => {
+    const element = scrollRef.current
+    if (!element) return 0
+    const rect = element.getBoundingClientRect()
+    const x = event.clientX - rect.left + element.scrollLeft
+    return Math.max(0, Math.min(TIMELINE_SECONDS, x / pixelsPerSecond))
+  }
+
+  const scrubFromEvent = (event) => {
+    if (event.target.closest('.timeline-clip')) return
+    event.preventDefault()
+    setPlayhead(pointerToTime(event))
+    const onMove = (moveEvent) => setPlayhead(pointerToTime(moveEvent))
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  const onDragStart = (event, clip) => {
+    const track = tracks.find((item) => item.id === clip.trackId)
+    if (track?.locked) {
+      event.preventDefault()
+      notify(`${clip.trackId} is locked`)
+      return
+    }
+    const rect = event.currentTarget.getBoundingClientRect()
+    dragInfoRef.current = { clipId: clip.id, offsetSeconds: (event.clientX - rect.left) / pixelsPerSecond }
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', clip.id)
+  }
+
+  const onDrop = (event, trackId) => {
+    event.preventDefault()
+    const targetTrack = tracks.find((track) => track.id === trackId)
+    if (targetTrack?.locked) return notify(`${trackId} is locked`)
+    const clipId = event.dataTransfer.getData('text/plain') || dragInfoRef.current?.clipId
+    const clip = clips.find((item) => item.id === clipId)
+    if (!clip) return
+    if (clip.type !== targetTrack.type) return notify(`Drop ${clip.type} clips on ${clip.type} tracks`)
+    const offset = dragInfoRef.current?.offsetSeconds || 0
+    const nextStart = snapTime(pointerToTime(event) - offset, clip.id)
+    commitClips((current) => current.map((item) => item.id === clip.id ? { ...item, trackId, start: Math.max(0, Math.min(TIMELINE_SECONDS - item.duration, nextStart)) } : item))
+    setSelectedClipIds([clip.id])
+    notify(`Moved to ${trackId}`)
+  }
+
+  const startTrim = (event, clip, edge) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const track = tracks.find((item) => item.id === clip.trackId)
+    if (track?.locked) return notify(`${clip.trackId} is locked`)
+    const before = cloneClips(clips)
+    const startX = event.clientX
+    const initialStart = clip.start
+    const initialDuration = clip.duration
+    const initialEnd = initialStart + initialDuration
+    let changed = false
+
+    const onMove = (moveEvent) => {
+      const delta = (moveEvent.clientX - startX) / pixelsPerSecond
+      setClips((current) => current.map((item) => {
+        if (item.id !== clip.id) return item
+        if (edge === 'left') {
+          const proposed = snapTime(initialStart + delta, clip.id)
+          const nextStart = Math.max(0, Math.min(initialEnd - MIN_CLIP_DURATION, proposed))
+          changed = changed || Math.abs(nextStart - initialStart) > 0.001
+          return { ...item, start: nextStart, duration: initialEnd - nextStart }
+        }
+        const proposedEnd = snapTime(initialEnd + delta, clip.id)
+        const nextEnd = Math.max(initialStart + MIN_CLIP_DURATION, Math.min(TIMELINE_SECONDS, proposedEnd))
+        changed = changed || Math.abs(nextEnd - initialEnd) > 0.001
+        return { ...item, duration: nextEnd - initialStart }
+      }))
+    }
+
+    const onUp = () => {
+      if (changed) {
+        pushHistory(before)
+        notify(edge === 'left' ? 'Trimmed clip start' : 'Trimmed clip end')
+      }
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  const removeMarker = (marker) => {
+    setMarkers((items) => items.filter((item) => item !== marker))
+    notify('Marker removed')
+  }
+
   return (
     <section className="timeline" style={{ height: `${height}%` }}>
       <div className="timeline-titlebar">
         <strong>Untitled Project</strong>
-        <span className="timeline-time">00:00:05:11</span>
+        <span className="timeline-time">{formatTime(playhead)}</span>
+        <span className={`snap-indicator ${snapping ? 'on' : ''}`}>Snap {snapping ? 'On' : 'Off'}</span>
+        <div className="track-size-control"><span>Track</span><button onClick={() => setTrackHeight((value) => Math.max(28, value - 4))}>−</button><button onClick={() => setTrackHeight((value) => Math.min(76, value + 4))}>+</button></div>
         <div className="timeline-zoom"><span>−</span><input type="range" min="60" max="180" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /><span>+</span></div>
       </div>
+
       <div className="timeline-body">
         <div className="track-controls">
           <div className="ruler-spacer" />
           {tracks.map((track) => (
-            <div className="track-control" key={track}>
-              <button onClick={() => notify(`${track} lock toggled`)}>🔒</button>
-              <strong>{track}</strong>
-              <button onClick={() => notify(`${track} visibility / mute toggled`)}>{track.startsWith('V') ? '◉' : 'M'}</button>
-              {!track.startsWith('V') && <button onClick={() => notify(`${track} solo toggled`)}>S</button>}
+            <div className="track-control" style={{ height: trackHeight }} key={track.id}>
+              <button className={track.locked ? 'on' : ''} onClick={() => toggleTrack(track.id, 'locked')}>🔒</button>
+              <strong>{track.id}</strong>
+              {track.type === 'video' ? (
+                <button className={track.hidden ? 'on' : ''} onClick={() => toggleTrack(track.id, 'hidden')}>◉</button>
+              ) : (
+                <><button className={track.muted ? 'on' : ''} onClick={() => toggleTrack(track.id, 'muted')}>M</button><button className={track.solo ? 'on' : ''} onClick={() => toggleTrack(track.id, 'solo')}>S</button></>
+              )}
             </div>
           ))}
         </div>
-        <div className="timeline-scroll">
-          <div className="time-ruler" style={{ width: `${1500 * zoom / 100}px` }}>
-            {['00:00', '00:16', '00:32', '00:48', '01:04', '01:20', '01:36', '01:52'].map((time, index) => <span key={time} style={{ left: `${index * 185}px` }}>{time}</span>)}
+
+        <div className="timeline-scroll" ref={scrollRef}>
+          <div className="time-ruler" style={{ width: laneWidth }} onPointerDown={scrubFromEvent}>
+            {Array.from({ length: 13 }, (_, index) => index * 10).map((seconds) => <span key={seconds} style={{ left: seconds * pixelsPerSecond }}>{formatShortTime(seconds)}</span>)}
           </div>
-          <div className="track-lanes" style={{ width: `${1500 * zoom / 100}px` }}>
-            <div className="playhead" />
-            {tracks.map((track, index) => (
-              <div className="track-lane" key={track}>
-                {index === 2 && <Clip id="clip-title" className="title-clip" label="Title" selectedClip={selectedClip} setSelectedClip={setSelectedClip} />}
-                {index === 3 && <Clip id="clip-v2" className="purple-clip" label="B-roll.mp4" selectedClip={selectedClip} setSelectedClip={setSelectedClip} />}
-                {index === 4 && <Clip id="clip-v1" className="blue-clip" label="Interview.mp4" selectedClip={selectedClip} setSelectedClip={setSelectedClip} />}
-                {index === 5 && <Clip id="clip-a1" className="green-clip audio-clip" label="Voiceover.mp3" selectedClip={selectedClip} setSelectedClip={setSelectedClip} />}
-                {index === 6 && <Clip id="clip-a2" className="yellow-clip audio-clip" label="Music.wav" selectedClip={selectedClip} setSelectedClip={setSelectedClip} />}
+
+          <div className="track-lanes" style={{ width: laneWidth }}>
+            <div className="playhead" style={{ left: playhead * pixelsPerSecond }} onPointerDown={scrubFromEvent} />
+            {markers.map((marker) => (
+              <button className="timeline-marker" key={marker} style={{ left: marker * pixelsPerSecond }} onClick={() => setPlayhead(marker)} onDoubleClick={() => removeMarker(marker)} title="Click to jump. Double-click to remove.">◆</button>
+            ))}
+
+            {tracks.map((track) => (
+              <div className={`track-lane ${track.locked ? 'locked' : ''}`} style={{ height: trackHeight }} key={track.id} onPointerDown={scrubFromEvent} onDragOver={(event) => event.preventDefault()} onDrop={(event) => onDrop(event, track.id)}>
+                {clips.filter((clip) => clip.trackId === track.id).map((clip) => (
+                  <button
+                    key={clip.id}
+                    draggable
+                    className={`timeline-clip ${clip.type} color-${clip.color} ${selectedClipIds.includes(clip.id) ? 'selected' : ''}`}
+                    style={{ left: clip.start * pixelsPerSecond, width: Math.max(18, clip.duration * pixelsPerSecond), height: Math.max(24, trackHeight - 6) }}
+                    onClick={(event) => onClipSelect(event, clip.id)}
+                    onDragStart={(event) => onDragStart(event, clip)}
+                    onContextMenu={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      if (!selectedClipIds.includes(clip.id)) setSelectedClipIds([clip.id])
+                      setContextMenu({ x: event.clientX, y: event.clientY, clipId: clip.id })
+                    }}
+                  >
+                    <span className="trim-handle left" onPointerDown={(event) => startTrim(event, clip, 'left')} />
+                    <span className="clip-name">{clip.name}</span>
+                    {clip.type === 'audio' && <span className="waveform-faux" aria-hidden="true" />}
+                    <span className="trim-handle right" onPointerDown={(event) => startTrim(event, clip, 'right')} />
+                  </button>
+                ))}
               </div>
             ))}
           </div>
@@ -336,8 +756,18 @@ function Timeline({ height, zoom, setZoom, selectedClip, setSelectedClip, notify
   )
 }
 
-function Clip({ id, className, label, selectedClip, setSelectedClip }) {
-  return <button className={`timeline-clip ${className} ${selectedClip === id ? 'selected' : ''}`} onClick={() => setSelectedClip(id)}>{label}</button>
+function formatTime(seconds) {
+  const whole = Math.floor(seconds)
+  const frames = Math.floor((seconds - whole) * 30)
+  const mins = Math.floor(whole / 60)
+  const secs = whole % 60
+  return `00:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}:${String(frames).padStart(2, '0')}`
+}
+
+function formatShortTime(seconds) {
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 }
 
 export default App
