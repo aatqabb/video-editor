@@ -26,10 +26,10 @@ if (!code.includes('onStockDrop={(result, trackId, startAt)')) {
   code = code.replace(timelineProps, `          pushHistory={pushHistory}\n          onStockDrop={(result, trackId, startAt) => addStockToTimeline(result, result.sourceLineId, trackId, startAt)}\n        />`)
 }
 
-if (!code.includes('  onStockDrop,\n}) {')) {
-  const signature = '  notify,\n  pushHistory,\n}) {'
-  if (!code.includes(signature)) throw new Error('Could not find Timeline signature insertion point')
-  code = code.replace(signature, '  notify,\n  pushHistory,\n  onStockDrop,\n}) {')
+if (!/function Timeline\(\{[^}]*\bonStockDrop\b/.test(code)) {
+  const compactSignature = 'notify, pushHistory }) {'
+  if (!code.includes(compactSignature)) throw new Error('Could not find Timeline signature insertion point')
+  code = code.replace(compactSignature, 'notify, pushHistory, onStockDrop }) {')
 }
 
 if (!code.includes("application/x-video-editor-stock")) {
