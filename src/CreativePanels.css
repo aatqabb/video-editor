@@ -37,7 +37,9 @@
 .program-text-overlay{position:absolute;transform:translate(-50%,-50%);max-width:86%;padding:3px 6px;white-space:pre-wrap;pointer-events:none;z-index:4;line-height:1.08}
 .monitor-screen{position:relative;overflow:hidden}
 .monitor-effect-layer{position:absolute;inset:0;pointer-events:none;z-index:2}
+.monitor-transition-label{position:absolute;left:6px;bottom:6px;z-index:5;padding:2px 5px;border-radius:2px;background:rgba(0,0,0,.72);color:#ddd;font-size:8px;pointer-events:none}
 .transition-badge,.effect-badge{position:absolute;top:2px;z-index:6;border-radius:2px;background:rgba(0,0,0,.7);padding:1px 3px;font-size:7px;color:#eee;pointer-events:none}
 .transition-badge{right:2px}
 .effect-badge{right:24px}
+.color-orange{background:#8a4d1c}
 @media(max-width:900px){.preset-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.creative-grid.two{grid-template-columns:1fr}}
