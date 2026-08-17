@@ -6,6 +6,7 @@
 .export-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
 .export-grid label{display:grid;gap:4px;color:#88888f;font-size:9px}
 .export-grid select,.export-path-row input{height:28px;background:#101012;border:1px solid #36363b;color:#ddd;border-radius:3px;padding:0 7px;min-width:0}
+.export-path-row input{font-family:Consolas,monospace;font-size:9px}
 .export-section-title{margin-top:10px;padding:5px 1px;color:#77777f;border-top:1px solid #2d2d31;font-size:8px;font-weight:700;letter-spacing:.55px}
 .export-capabilities{display:grid;gap:3px}
 .export-capabilities>div{min-height:27px;display:flex;align-items:center;gap:7px;padding:4px 6px;background:#1d1d20;border:1px solid #303034;border-radius:3px}
