@@ -5,10 +5,11 @@ import { EffectsWorkspace, SfxWorkspace, TextWorkspace, TransitionWorkspace } fr
 import { AudioControls, VideoControls, VoiceoverWorkspace } from './ClipControls'
 import ProjectWorkspace from './ProjectWorkspace'
 import MediaLibrary from './MediaLibrary'
+import ExportWorkspace from './ExportWorkspace'
 import { buildProjectDocument, clearAutosave, getRecentProjects, readAutosave, readProjectFile, rememberProject, saveProjectFile, writeAutosave } from './projectPersistence'
 
 const leftTabs = ['Media', 'Project', 'Effect Controls', 'Effects', 'Tools', 'Text', 'Properties']
-const centerTabs = ['Source', 'Script', 'Stock', 'SFX', 'Transitions', 'Essential Sound']
+const centerTabs = ['Source', 'Script', 'Stock', 'SFX', 'Transitions', 'Essential Sound', 'Export']
 
 const shortcutRows = [
   ['Space', 'Play / Pause preview'],
@@ -257,7 +258,7 @@ function App() {
         createdIds.push(rightId)
         next.push(
           { ...clip, duration: leftDuration },
-          { ...clip, id: rightId, name: `${clip.name} (2)`, start: playhead, duration: rightDuration },
+          { ...clip, id: rightId, name: `${clip.name} (2)`, start: playhead, duration: rightDuration, sourceIn: (Number(clip.sourceIn) || 0) + leftDuration * Math.max(.1, Number(clip.video?.speed) || 1) },
         )
       })
       return next
@@ -278,7 +279,8 @@ function App() {
       if (!ids.has(clip.id)) return clip
       const end = clip.start + clip.duration
       if (direction === 'backward') {
-        return { ...clip, start: playhead, duration: Math.max(MIN_CLIP_DURATION, end - playhead) }
+        const deltaSource = (playhead - clip.start) * Math.max(.1, Number(clip.video?.speed) || 1)
+        return { ...clip, start: playhead, duration: Math.max(MIN_CLIP_DURATION, end - playhead), sourceIn: (Number(clip.sourceIn) || 0) + deltaSource }
       }
       return { ...clip, duration: Math.max(MIN_CLIP_DURATION, playhead - clip.start) }
     }))
@@ -426,6 +428,8 @@ function App() {
       sourceDuration: duration,
       color: timelineType === 'audio' ? 'green' : media.type === 'image' ? 'purple' : 'blue',
       localUrl: media.localUrl,
+      sourcePath: media.sourcePath || '',
+      sourceIn: 0,
       thumbnail: media.thumbnail || null,
       waveform: media.waveform || [],
       width: media.width || 0,
@@ -471,6 +475,7 @@ function App() {
         start,
         duration,
         color: result.provider === 'Pexels' ? 'cyan' : 'purple',
+        sourceIn: 0,
         thumbnail: result.thumbnail,
         remoteUrl: result.fileUrl,
         pageUrl: result.pageUrl,
@@ -719,6 +724,9 @@ function App() {
   }
 
   const renderCenterBody = () => {
+    if (centerTab === 'Export') {
+      return <ExportWorkspace projectName={projectName} projectSettings={projectSettings} clips={clips} tracks={tracks} notify={notify} />
+    }
     if (centerTab === 'Source') return <Monitor playing={playing} setPlaying={setPlaying} notify={notify} empty />
     if (centerTab === 'Script') {
       return (
@@ -740,7 +748,15 @@ function App() {
         <button className="home-btn" onClick={() => notify('Home')}>⌂</button>
         <nav className="workspace-nav">
           {['Import', 'Edit', 'Export'].map((item) => (
-            <button key={item} className={item === 'Edit' ? 'active' : ''} onClick={() => notify(`${item} workspace`)}>{item}</button>
+            <button
+              key={item}
+              className={item === 'Edit' ? 'active' : ''}
+              onClick={() => {
+                if (item === 'Import') setLeftTab('Media')
+                else if (item === 'Export') setCenterTab('Export')
+                else notify('Edit workspace')
+              }}
+            >{item}</button>
           ))}
         </nav>
         <button className="project-title" onClick={() => setLeftTab('Project')} title="Project settings">{projectName}</button>
@@ -1021,7 +1037,8 @@ function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, 
           const proposed = snapTime(initialStart + delta, clip.id)
           const nextStart = Math.max(0, Math.min(initialEnd - MIN_CLIP_DURATION, proposed))
           changed = changed || Math.abs(nextStart - initialStart) > 0.001
-          return { ...item, start: nextStart, duration: initialEnd - nextStart }
+          const sourceDelta = (nextStart - initialStart) * Math.max(.1, Number(item.video?.speed) || 1)
+          return { ...item, start: nextStart, duration: initialEnd - nextStart, sourceIn: (Number(clip.sourceIn) || 0) + sourceDelta }
         }
         const proposedEnd = snapTime(initialEnd + delta, clip.id)
         const nextEnd = Math.max(initialStart + MIN_CLIP_DURATION, Math.min(TIMELINE_SECONDS, proposedEnd))
