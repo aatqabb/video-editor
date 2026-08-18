@@ -2,11 +2,13 @@ const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron/main')
 const fs = require('node:fs')
 const path = require('node:path')
 const { probeFfmpeg, startExport } = require('./exportEngine.cjs')
+const { makeProxy } = require('./proxyEngine.cjs')
 
 if (require('electron-squirrel-startup')) app.quit()
 
 let mainWindow = null
 let activeExport = null
+const activeProxyJobs = new Map()
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -61,6 +63,17 @@ ipcMain.handle('desktop:get-export-capabilities', async () => {
     gpuFeatureStatus: app.getGPUFeatureStatus(),
     gpuInfo,
   }
+})
+
+ipcMain.handle('desktop:create-proxy', async (_event, sourcePath) => {
+  if (!sourcePath || typeof sourcePath !== 'string') throw new Error('A local video path is required for proxy preview')
+  if (activeProxyJobs.has(sourcePath)) return activeProxyJobs.get(sourcePath)
+  const proxyDir = path.join(app.getPath('userData'), 'proxies')
+  const job = makeProxy(sourcePath, proxyDir)
+  if (job?.url) return job
+  const promise = job.done.finally(() => activeProxyJobs.delete(sourcePath))
+  activeProxyJobs.set(sourcePath, promise)
+  return promise
 })
 
 function ensureExportExtension(filePath, extension) {
