@@ -125,6 +125,25 @@ function transitionZoomFilter(clip) {
   return `scale=w='max(2,iw*${factor})':h='max(2,ih*${factor})':eval=frame`
 }
 
+function transitionLightLeakFilters(clip) {
+  const type = String(clip.transition?.type || '')
+  if (!['Light Leak Warm', 'Light Leak Cool', 'Light Leak Film'].includes(type)) return []
+
+  const duration = transitionDuration(clip)
+  const progress = `min(1,max(0,t/${duration}))`
+  const glow = `(1-${progress})`
+  const tint = type === 'Light Leak Cool'
+    ? { r: -.08, g: .04, b: .2 }
+    : type === 'Light Leak Film'
+      ? { r: .12, g: .03, b: .06 }
+      : { r: .18, g: .06, b: -.12 }
+
+  return [
+    `eq=brightness='0.3*${glow}':saturation='1+0.5*${glow}':eval=frame`,
+    `colorbalance=rs=${tint.r}:gs=${tint.g}:bs=${tint.b}:enable='lt(t,${duration})'`,
+  ]
+}
+
 function transitionOverlayPosition(clip, axis, baseExpression) {
   const type = String(clip.transition?.type || '')
   const start = seconds(clip.start)
@@ -172,6 +191,7 @@ function videoClipFilter(clip, inputIndex, width, height) {
   if (speed !== 1) filters.push(`setpts=PTS/${speed}`)
   const zoomFilter = transitionZoomFilter(clip)
   if (zoomFilter) filters.push(zoomFilter)
+  filters.push(...transitionLightLeakFilters(clip))
   filters.push(`format=rgba,colorchannelmixer=aa=${opacity}`)
   const transitionFilter = transitionFadeFilter(clip)
   if (transitionFilter) filters.push(transitionFilter)
