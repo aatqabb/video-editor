@@ -1,0 +1,9 @@
+.shortcut-row[data-clickable='1']{cursor:pointer;border-radius:4px;transition:background .12s ease,transform .08s ease}
+.shortcut-row[data-clickable='1']:hover{background:rgba(89,153,255,.12)}
+.shortcut-row[data-clickable='1']:active{transform:translateY(1px)}
+.shortcut-row[data-clickable='1']:focus-visible{outline:1px solid #67a9ff;outline-offset:2px}
+.ux-extra-tool{min-width:74px}
+.playhead{will-change:left;transform:translateZ(0)}
+.playhead:before{filter:drop-shadow(0 1px 1px rgba(0,0,0,.7))}
+.timeline-marker{filter:drop-shadow(0 1px 1px rgba(0,0,0,.45));transition:transform .1s ease}
+.timeline-marker:hover{transform:scale(1.28)}
