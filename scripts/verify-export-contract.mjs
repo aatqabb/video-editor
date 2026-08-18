@@ -12,6 +12,9 @@ const checks = [
   ['export engine emits percent from FFmpeg time', exportEngine.includes('percent: Math.max(0, Math.min(100, current / duration * 100))')],
   ['export engine contains MP3 audio-only branch', exportEngine.includes("options.format === 'mp3'") && exportEngine.includes("'-vn'")],
   ['export engine contains H.264 MP4 path', exportEngine.includes("'-c:v'") && exportEngine.includes("'-movflags', '+faststart'")],
+  ['fade and dissolve transitions are rendered', exportEngine.includes('transitionFadeFilter') && exportEngine.includes("'Cross Dissolve'")],
+  ['slide and push transitions are rendered', exportEngine.includes('transitionOverlayPosition') && exportEngine.includes("'Slide Left'") && exportEngine.includes("'Push'")],
+  ['zoom transitions are rendered', exportEngine.includes('transitionZoomFilter') && exportEngine.includes("'Zoom In'") && exportEngine.includes("'Zoom Out'")],
   ['main process handles export cancellation', mainProcess.includes('cancel') && mainProcess.includes('export')],
   ['preload exposes export bridge', preload.includes('Export') || preload.includes('export')],
 ]

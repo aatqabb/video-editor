@@ -95,6 +95,53 @@ function addMediaInputs(args, clips) {
   return inputMap
 }
 
+function transitionDuration(clip) {
+  const requested = Math.max(.05, Number(clip.transition?.duration) || .45)
+  return Math.min(requested, Math.max(.05, seconds(clip.duration) / 2))
+}
+
+function transitionFadeFilter(clip) {
+  const type = String(clip.transition?.type || '')
+  if (!['Fade', 'Cross Dissolve'].includes(type)) return null
+  return `fade=t=in:st=0:d=${transitionDuration(clip)}:alpha=1`
+}
+
+function transitionZoomFilter(clip) {
+  const type = String(clip.transition?.type || '')
+  const zooms = {
+    'Zoom In': [.82, 1],
+    'Zoom Out': [1.18, 1],
+    'Smooth Zoom In': [.72, 1],
+    'Smooth Zoom Out': [1.28, 1],
+  }
+  const range = zooms[type]
+  if (!range) return null
+
+  const duration = transitionDuration(clip)
+  const progress = `min(1,max(0,t/${duration}))`
+  const eased = type.startsWith('Smooth') ? `(${progress}*${progress}*(3-2*${progress}))` : progress
+  const [from, to] = range
+  const factor = `(${from}+(${to - from})*${eased})`
+  return `scale=w='max(2,iw*${factor})':h='max(2,ih*${factor})':eval=frame`
+}
+
+function transitionOverlayPosition(clip, axis, baseExpression) {
+  const type = String(clip.transition?.type || '')
+  const start = seconds(clip.start)
+  const duration = transitionDuration(clip)
+  const progress = `min(1,max(0,(t-${start})/${duration}))`
+
+  if (axis === 'x') {
+    if (type === 'Slide Left' || type === 'Push') return `${baseExpression}+W*(1-${progress})`
+    if (type === 'Slide Right') return `${baseExpression}-W*(1-${progress})`
+  }
+  if (axis === 'y') {
+    if (type === 'Slide Up') return `${baseExpression}+H*(1-${progress})`
+    if (type === 'Slide Down') return `${baseExpression}-H*(1-${progress})`
+  }
+  return baseExpression
+}
+
 function videoClipFilter(clip, inputIndex, width, height) {
   const video = clip.video || {}
   const cropTop = Math.max(0, Math.min(49, Number(video.cropTop) || 0)) / 100
@@ -123,7 +170,11 @@ function videoClipFilter(clip, inputIndex, width, height) {
   ]
   if (rotation) filters.push(`rotate=${rotation}:ow=rotw(${rotation}):oh=roth(${rotation}):c=black@0`)
   if (speed !== 1) filters.push(`setpts=PTS/${speed}`)
+  const zoomFilter = transitionZoomFilter(clip)
+  if (zoomFilter) filters.push(zoomFilter)
   filters.push(`format=rgba,colorchannelmixer=aa=${opacity}`)
+  const transitionFilter = transitionFadeFilter(clip)
+  if (transitionFilter) filters.push(transitionFilter)
 
   for (const effect of clip.effects || []) {
     const intensity = Math.max(0, Math.min(100, Number(effect.intensity) || 0))
@@ -159,11 +210,13 @@ function buildVideoFilters(manifest, inputMap, duration) {
     const prepared = `vprep${index}`
     lines.push(`[${inputIndex}:v]${videoClipFilter(clip, inputIndex, width, height)}[${prepared}]`)
     const nextBase = `base${index + 1}`
-    const x = `(W-w)*${Math.max(0, Math.min(1, (Number(clip.video?.positionX ?? 50)) / 100))}`
-    const y = `(H-h)*${Math.max(0, Math.min(1, (Number(clip.video?.positionY ?? 50)) / 100))}`
+    const baseX = `(W-w)*${Math.max(0, Math.min(1, (Number(clip.video?.positionX ?? 50)) / 100))}`
+    const baseY = `(H-h)*${Math.max(0, Math.min(1, (Number(clip.video?.positionY ?? 50)) / 100))}`
+    const x = transitionOverlayPosition(clip, 'x', baseX)
+    const y = transitionOverlayPosition(clip, 'y', baseY)
     const start = seconds(clip.start)
     const end = start + seconds(clip.duration)
-    lines.push(`[${base}][${prepared}]overlay=x=${x}:y=${y}:enable='between(t,${start},${end})':eof_action=pass[${nextBase}]`)
+    lines.push(`[${base}][${prepared}]overlay=x='${x}':y='${y}':enable='between(t,${start},${end})':eof_action=pass[${nextBase}]`)
     base = nextBase
   })
 
