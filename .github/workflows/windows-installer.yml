@@ -1,0 +1,48 @@
+name: Windows Installer
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'electron/**'
+      - 'src/**'
+      - 'vite.config.*'
+      - '.github/workflows/windows-installer.yml'
+  workflow_dispatch:
+
+jobs:
+  build-installer:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build Windows Setup.exe
+        run: npm run package:win
+
+      - name: Verify installer artifact
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path release -Filter 'VideoEditor-Setup-*.exe' -File | Select-Object -First 1
+          if (-not $installer) { throw 'Windows Setup.exe was not produced' }
+          if ($installer.Length -lt 1MB) { throw "Installer is unexpectedly small: $($installer.Length) bytes" }
+          Write-Host "Verified installer: $($installer.FullName) ($($installer.Length) bytes)"
+
+      - name: Upload Setup.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoEditor-Windows-Setup
+          path: release/VideoEditor-Setup-*.exe
+          if-no-files-found: error
