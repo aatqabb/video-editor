@@ -4,6 +4,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { probeFfmpeg, startExport } = require('./exportEngine.cjs')
 const { makeProxy } = require('./proxyEngine.cjs')
+const { summarizeGpuCapabilities } = require('./gpuCapabilities.cjs')
 
 function handleSquirrelStartupEvent() {
   if (process.platform !== 'win32') return false
@@ -60,6 +61,7 @@ function createWindow() {
 ipcMain.handle('desktop:get-system-info', async () => {
   let gpuInfo = null
   try { gpuInfo = await app.getGPUInfo('basic') } catch { gpuInfo = null }
+  const ffmpeg = probeFfmpeg()
 
   return {
     platform: process.platform,
@@ -70,17 +72,20 @@ ipcMain.handle('desktop:get-system-info', async () => {
     hardwareAcceleration: app.isHardwareAccelerationEnabled(),
     gpuFeatureStatus: app.getGPUFeatureStatus(),
     gpuInfo,
+    gpuCapabilities: summarizeGpuCapabilities(gpuInfo, ffmpeg),
   }
 })
 
 ipcMain.handle('desktop:get-export-capabilities', async () => {
   let gpuInfo = null
   try { gpuInfo = await app.getGPUInfo('basic') } catch { gpuInfo = null }
+  const ffmpeg = probeFfmpeg()
   return {
-    ffmpeg: probeFfmpeg(),
+    ffmpeg,
     hardwareAcceleration: app.isHardwareAccelerationEnabled(),
     gpuFeatureStatus: app.getGPUFeatureStatus(),
     gpuInfo,
+    gpuCapabilities: summarizeGpuCapabilities(gpuInfo, ffmpeg),
   }
 })
 
