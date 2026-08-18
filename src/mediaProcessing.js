@@ -175,11 +175,33 @@ async function processImage(url) {
   return { duration: 5, width: image.naturalWidth, height: image.naturalHeight, thumbnail: url }
 }
 
+async function maybeCreateDesktopProxy(type, sourcePath, metadata, originalUrl) {
+  const desktop = window.videoEditorDesktop
+  const shouldProxy = type === 'video'
+    && sourcePath
+    && typeof desktop?.createProxy === 'function'
+    && ((metadata.width || 0) > 1280 || (metadata.height || 0) > 720)
+  if (!shouldProxy) return { localUrl: originalUrl, proxyUrl: '', usingProxy: false }
+
+  try {
+    const proxy = await desktop.createProxy(sourcePath)
+    if (!proxy?.url) return { localUrl: originalUrl, proxyUrl: '', usingProxy: false }
+    return { localUrl: proxy.url, proxyUrl: proxy.url, usingProxy: true }
+  } catch (error) {
+    return {
+      localUrl: originalUrl,
+      proxyUrl: '',
+      usingProxy: false,
+      proxyError: error?.message || 'Could not create low-resolution preview proxy',
+    }
+  }
+}
+
 export async function processMediaFile(file) {
   const type = detectMediaType(file)
   if (type === 'unknown') throw new Error(`${file.name}: unsupported media type`)
 
-  const localUrl = URL.createObjectURL(file)
+  const originalUrl = URL.createObjectURL(file)
   const sourcePath = window.videoEditorDesktop?.getPathForFile?.(file) || ''
   const base = {
     id: `media-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
@@ -188,15 +210,20 @@ export async function processMediaFile(file) {
     mimeType: file.type || '',
     size: file.size,
     lastModified: file.lastModified,
-    localUrl,
+    localUrl: originalUrl,
+    originalUrl,
     sourcePath,
     sourceFileName: file.name,
   }
 
   try {
-    if (type === 'video') return { ...base, ...(await processVideo(file, localUrl)) }
+    if (type === 'video') {
+      const metadata = await processVideo(file, originalUrl)
+      const proxyState = await maybeCreateDesktopProxy(type, sourcePath, metadata, originalUrl)
+      return { ...base, ...metadata, ...proxyState }
+    }
     if (type === 'audio') return { ...base, ...(await processAudio(file)) }
-    return { ...base, ...(await processImage(localUrl)) }
+    return { ...base, ...(await processImage(originalUrl)) }
   } catch (error) {
     return { ...base, duration: type === 'image' ? 5 : 3, processingError: error?.message || 'Could not analyze media' }
   }
