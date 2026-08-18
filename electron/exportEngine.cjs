@@ -106,6 +106,25 @@ function transitionFadeFilter(clip) {
   return `fade=t=in:st=0:d=${transitionDuration(clip)}:alpha=1`
 }
 
+function transitionZoomFilter(clip) {
+  const type = String(clip.transition?.type || '')
+  const zooms = {
+    'Zoom In': [.82, 1],
+    'Zoom Out': [1.18, 1],
+    'Smooth Zoom In': [.72, 1],
+    'Smooth Zoom Out': [1.28, 1],
+  }
+  const range = zooms[type]
+  if (!range) return null
+
+  const duration = transitionDuration(clip)
+  const progress = `min(1,max(0,t/${duration}))`
+  const eased = type.startsWith('Smooth') ? `(${progress}*${progress}*(3-2*${progress}))` : progress
+  const [from, to] = range
+  const factor = `(${from}+(${to - from})*${eased})`
+  return `scale=w='max(2,iw*${factor})':h='max(2,ih*${factor})':eval=frame`
+}
+
 function transitionOverlayPosition(clip, axis, baseExpression) {
   const type = String(clip.transition?.type || '')
   const start = seconds(clip.start)
@@ -151,6 +170,8 @@ function videoClipFilter(clip, inputIndex, width, height) {
   ]
   if (rotation) filters.push(`rotate=${rotation}:ow=rotw(${rotation}):oh=roth(${rotation}):c=black@0`)
   if (speed !== 1) filters.push(`setpts=PTS/${speed}`)
+  const zoomFilter = transitionZoomFilter(clip)
+  if (zoomFilter) filters.push(zoomFilter)
   filters.push(`format=rgba,colorchannelmixer=aa=${opacity}`)
   const transitionFilter = transitionFadeFilter(clip)
   if (transitionFilter) filters.push(transitionFilter)
