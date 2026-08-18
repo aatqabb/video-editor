@@ -1,6 +1,15 @@
 name: Export Runtime
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'electron/**'
+      - 'scripts/verify-export-runtime.cjs'
+      - '.github/workflows/export-runtime.yml'
+      - 'package.json'
+      - 'package-lock.json'
   pull_request:
     paths:
       - 'electron/**'
