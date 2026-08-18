@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "verify:gpu": "node scripts/verify-gpu-contract.mjs",
+    "verify:responsiveness": "node scripts/verify-responsiveness-contract.mjs",
     "desktop": "npm run build && electron .",
     "package:win": "npm run build && npx --yes electron-builder@26.0.12 --win nsis --x64"
   },
