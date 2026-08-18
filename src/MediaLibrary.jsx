@@ -32,11 +32,13 @@ export default function MediaLibrary({ items, setItems, onAddMedia, notify }) {
     const imported = await processMediaFiles(files, (done, total) => setProcessing(`Processing ${done} / ${total}`))
     setItems((current) => [...current, ...imported])
     setProcessing('')
-    notify(`${imported.length} media file${imported.length === 1 ? '' : 's'} imported`)
+    const proxies = imported.filter((item) => item.usingProxy).length
+    notify(`${imported.length} media file${imported.length === 1 ? '' : 's'} imported${proxies ? ` · ${proxies} proxy preview${proxies === 1 ? '' : 's'}` : ''}`)
   }
 
   const removeItem = (item) => {
     if (item.localUrl?.startsWith('blob:')) URL.revokeObjectURL(item.localUrl)
+    if (item.originalUrl?.startsWith('blob:') && item.originalUrl !== item.localUrl) URL.revokeObjectURL(item.originalUrl)
     setItems((current) => current.filter((entry) => entry.id !== item.id))
     if (preview?.id === item.id) setPreview(null)
   }
@@ -69,7 +71,7 @@ export default function MediaLibrary({ items, setItems, onAddMedia, notify }) {
         {filters.map((item) => <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}</button>)}
       </div>
 
-      {processing && <div className="media-processing">{processing} · thumbnails/waveforms generating…</div>}
+      {processing && <div className="media-processing">{processing} · thumbnails/waveforms/proxies generating…</div>}
 
       {!items.length && (
         <button className="media-drop-zone" onClick={() => fileRef.current?.click()}>
@@ -96,25 +98,25 @@ export default function MediaLibrary({ items, setItems, onAddMedia, notify }) {
               {item.type === 'image' && item.thumbnail && <img src={item.thumbnail} alt="" />}
               {item.type === 'audio' && <Waveform peaks={item.waveform} />}
               {!item.thumbnail && item.type !== 'audio' && <span className="media-type-placeholder">{item.type === 'video' ? '▶' : '▧'}</span>}
-              <span className="real-media-type">{item.type}</span>
+              <span className="real-media-type">{item.usingProxy ? 'proxy' : item.type}</span>
             </button>
             <div className="real-media-info">
               <span title={item.name}>{item.name}</span>
-              <small>{formatMediaDuration(item.duration)}{item.width ? ` · ${item.width}×${item.height}` : ''}</small>
+              <small>{formatMediaDuration(item.duration)}{item.width ? ` · ${item.width}×${item.height}` : ''}{item.usingProxy ? ' · 960px preview' : ''}</small>
             </div>
             <div className="real-media-actions">
               <button onClick={() => onAddMedia(item)}>Add</button>
               <button onClick={() => setPreview(item)}>Preview</button>
               <button onClick={() => removeItem(item)}>✕</button>
             </div>
-            {item.processingError && <div className="media-card-warning" title={item.processingError}>metadata warning</div>}
+            {(item.processingError || item.proxyError) && <div className="media-card-warning" title={item.processingError || item.proxyError}>metadata warning</div>}
           </article>
         ))}
       </div>
 
       {preview && (
         <div className="media-preview-dock">
-          <div className="media-preview-head"><strong>{preview.name}</strong><button onClick={() => setPreview(null)}>✕</button></div>
+          <div className="media-preview-head"><strong>{preview.name}{preview.usingProxy ? ' · Proxy Preview' : ''}</strong><button onClick={() => setPreview(null)}>✕</button></div>
           {preview.type === 'video' && <video key={preview.localUrl} src={preview.localUrl} controls autoPlay />}
           {preview.type === 'audio' && <audio key={preview.localUrl} src={preview.localUrl} controls autoPlay />}
           {preview.type === 'image' && <img src={preview.localUrl} alt="" />}
