@@ -20,24 +20,30 @@ export function moveSelectedClips({ clips, selectedIds, anchorId, targetTrackId,
   const targetTrack = tracks.find((track) => track.id === targetTrackId)
   if (!anchor || !targetTrack || anchor.type !== targetTrack.type) return clips
 
-  const group = clips.filter((clip) => selected.has(clip.id) && clip.type === anchor.type && !tracks.find((track) => track.id === clip.trackId)?.locked)
-  const moving = group.length ? group : [anchor]
+  const selectedUnlocked = clips.filter((clip) => selected.has(clip.id) && !tracks.find((track) => track.id === clip.trackId)?.locked)
+  const moving = selectedUnlocked.length ? selectedUnlocked : [anchor]
   const movingIds = new Set(moving.map((clip) => clip.id))
   const minStart = Math.min(...moving.map((clip) => clip.start))
   const maxEnd = Math.max(...moving.map((clip) => clip.start + clip.duration))
   let delta = requestedAnchorStart - anchor.start
   delta = Math.max(-minStart, Math.min(timelineSeconds - maxEnd, delta))
 
-  const sameTypeTracks = tracks.filter((track) => track.type === anchor.type)
-  const anchorTrackIndex = sameTypeTracks.findIndex((track) => track.id === anchor.trackId)
-  const targetTrackIndex = sameTypeTracks.findIndex((track) => track.id === targetTrackId)
+  const anchorTypeTracks = tracks.filter((track) => track.type === anchor.type)
+  const anchorTrackIndex = anchorTypeTracks.findIndex((track) => track.id === anchor.trackId)
+  const targetTrackIndex = anchorTypeTracks.findIndex((track) => track.id === targetTrackId)
   const trackShift = targetTrackIndex - anchorTrackIndex
 
   return clips.map((clip) => {
     if (!movingIds.has(clip.id)) return clip
-    const sourceIndex = sameTypeTracks.findIndex((track) => track.id === clip.trackId)
-    const shiftedTrack = sameTypeTracks[sourceIndex + trackShift]
-    const nextTrackId = shiftedTrack && !shiftedTrack.locked ? shiftedTrack.id : clip.trackId
+
+    let nextTrackId = clip.trackId
+    if (clip.type === anchor.type && trackShift !== 0) {
+      const sameTypeTracks = tracks.filter((track) => track.type === clip.type)
+      const sourceIndex = sameTypeTracks.findIndex((track) => track.id === clip.trackId)
+      const shiftedTrack = sameTypeTracks[sourceIndex + trackShift]
+      if (shiftedTrack && !shiftedTrack.locked) nextTrackId = shiftedTrack.id
+    }
+
     return { ...clip, start: clip.start + delta, trackId: nextTrackId }
   })
 }
