@@ -1,10 +1,29 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron/main')
+const { spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 const { probeFfmpeg, startExport } = require('./exportEngine.cjs')
 const { makeProxy } = require('./proxyEngine.cjs')
 
-if (require('electron-squirrel-startup')) app.quit()
+function handleSquirrelStartupEvent() {
+  if (process.platform !== 'win32') return false
+  const event = process.argv.find((argument) => argument.startsWith('--squirrel-'))
+  if (!event) return false
+
+  if (event === '--squirrel-install' || event === '--squirrel-updated' || event === '--squirrel-uninstall') {
+    const updateExe = path.resolve(path.dirname(process.execPath), '..', 'Update.exe')
+    const executableName = path.basename(process.execPath)
+    const action = event === '--squirrel-uninstall' ? '--removeShortcut' : '--createShortcut'
+    if (fs.existsSync(updateExe)) {
+      spawnSync(updateExe, [action, executableName], { windowsHide: true, timeout: 15000 })
+    }
+  }
+
+  app.quit()
+  return true
+}
+
+const squirrelStartup = handleSquirrelStartupEvent()
 
 let mainWindow = null
 let activeExport = null
@@ -155,13 +174,15 @@ ipcMain.handle('desktop:show-open-project', async () => {
   return result.canceled ? null : result.filePaths[0]
 })
 
-app.whenReady().then(() => {
-  app.setAppUserModelId('com.squirrel.VideoEditor.VideoEditor')
-  createWindow()
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+if (!squirrelStartup) {
+  app.whenReady().then(() => {
+    app.setAppUserModelId('com.squirrel.VideoEditor.VideoEditor')
+    createWindow()
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
   })
-})
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
