@@ -8,16 +8,19 @@ import { installControlTooltips } from './controlTooltips.js'
 import { installTransitionPreviews } from './transitionPreviewEnhancer.js'
 import { installTimelineSelectionEnhancer } from './timelineSelectionEnhancer.js'
 import { installEditorUxEnhancer } from './editorUxEnhancer.js'
+import { installTimelineScrubLock } from './timelineScrubLock.js'
 
 const removeTooltips = installControlTooltips()
 const removeTransitionPreviews = installTransitionPreviews()
 const removeTimelineSelection = installTimelineSelectionEnhancer()
 const removeEditorUx = installEditorUxEnhancer()
+const removeTimelineScrubLock = installTimelineScrubLock()
 window.addEventListener('beforeunload', () => {
   removeTooltips()
   removeTransitionPreviews()
   removeTimelineSelection()
   removeEditorUx()
+  removeTimelineScrubLock()
 }, { once: true })
 
 createRoot(document.getElementById('root')).render(
