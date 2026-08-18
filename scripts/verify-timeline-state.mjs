@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict'
+import { addTimelineTrack, moveSelectedClips } from '../src/timelineStateHelpers.js'
+
+const tracks = [
+  { id: 'V2', type: 'video', locked: false },
+  { id: 'V1', type: 'video', locked: false },
+  { id: 'A1', type: 'audio', locked: false },
+]
+const addedVideo = addTimelineTrack(tracks, 'video')
+assert.equal(addedVideo.track.id, 'V3')
+assert.deepEqual(addedVideo.tracks.map((track) => track.id), ['V2', 'V1', 'V3', 'A1'])
+const addedAudio = addTimelineTrack(addedVideo.tracks, 'audio')
+assert.equal(addedAudio.track.id, 'A2')
+
+const clips = [
+  { id: 'a', type: 'video', trackId: 'V2', start: 2, duration: 3 },
+  { id: 'b', type: 'video', trackId: 'V1', start: 5, duration: 2 },
+  { id: 'c', type: 'audio', trackId: 'A1', start: 1, duration: 4 },
+]
+const moved = moveSelectedClips({
+  clips,
+  selectedIds: ['a', 'b'],
+  anchorId: 'a',
+  targetTrackId: 'V1',
+  tracks,
+  requestedAnchorStart: 12,
+  timelineSeconds: 120,
+})
+assert.equal(moved.find((clip) => clip.id === 'a').start, 12)
+assert.equal(moved.find((clip) => clip.id === 'b').start, 15)
+assert.equal(moved.find((clip) => clip.id === 'a').trackId, 'V1')
+assert.equal(moved.find((clip) => clip.id === 'b').trackId, 'V1')
+assert.equal(moved.find((clip) => clip.id === 'c').start, 1)
+console.log('timeline state helpers verified')

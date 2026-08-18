@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "verify:gpu": "node scripts/verify-gpu-contract.mjs",
     "verify:responsiveness": "node scripts/verify-responsiveness-contract.mjs",
+    "verify:timeline": "node scripts/verify-timeline-state.mjs",
     "desktop": "npm run build && electron .",
     "package:win": "npm run build && npx --yes electron-builder@26.0.12 --win nsis --x64"
   },
@@ -42,7 +43,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "VideoEditor-Setup-${version}.${ext}"

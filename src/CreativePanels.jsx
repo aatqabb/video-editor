@@ -4,12 +4,44 @@ import './CreativePanels.css'
 const COMMON_FONTS = ['Segoe UI', 'Arial', 'Calibri', 'Cambria', 'Georgia', 'Verdana', 'Trebuchet MS', 'Times New Roman', 'Courier New', 'Impact']
 
 const TEXT_IN_ANIMATIONS = [
-  ['None', 'None'], ['Fade In', 'Fade In'], ['Slide Up', 'Slide Up'], ['Slide Down', 'Slide Down'], ['Slide Left', 'Slide Left'], ['Slide Right', 'Slide Right'],
-  ['Zoom In', 'Zoom In'], ['Popup', 'Pop'], ['Bounce', 'Pop'], ['Reveal', 'Typewriter'], ['Typewriter', 'Typewriter'], ['Blur In', 'Blur In'],
+  ['None', 'None'],
+  ['Fade In', 'Fade In'],
+  ['Slide Up', 'Slide Up'],
+  ['Slide Down', 'Slide Down'],
+  ['Slide Left', 'Slide Left'],
+  ['Slide Right', 'Slide Right'],
+  ['Zoom In', 'Zoom In'],
+  ['Popup', 'Pop'],
+  ['Bounce', 'Pop'],
+  ['Reveal', 'Typewriter'],
+  ['Typewriter', 'Typewriter'],
+  ['Blur In', 'Blur In'],
+  ['Zoom + Fade', 'Zoom In Fade'],
+  ['Rise + Fade', 'Slide Up Fade'],
+  ['Drop + Fade', 'Slide Down Fade'],
+  ['Reveal Left', 'Slide Left Fade'],
+  ['Reveal Right', 'Slide Right Fade'],
+  ['Blur + Zoom', 'Blur Zoom In'],
 ]
+
 const TEXT_OUT_ANIMATIONS = [
-  ['None', 'None'], ['Fade Out', 'Fade Out'], ['Slide Up', 'Slide Up'], ['Slide Down', 'Slide Down'], ['Slide Left', 'Slide Left'], ['Slide Right', 'Slide Right'],
-  ['Zoom Out', 'Zoom Out'], ['Shrink', 'Shrink'], ['Bounce Out', 'Shrink'], ['Reveal Out', 'Fade Out'], ['Blur Out', 'Blur Out'],
+  ['None', 'None'],
+  ['Fade Out', 'Fade Out'],
+  ['Slide Up', 'Slide Up'],
+  ['Slide Down', 'Slide Down'],
+  ['Slide Left', 'Slide Left'],
+  ['Slide Right', 'Slide Right'],
+  ['Zoom Out', 'Zoom Out'],
+  ['Shrink', 'Shrink'],
+  ['Bounce Out', 'Shrink'],
+  ['Reveal Out', 'Fade Out'],
+  ['Blur Out', 'Blur Out'],
+  ['Zoom + Fade Out', 'Zoom Out Fade'],
+  ['Rise + Fade Out', 'Slide Up Fade'],
+  ['Drop + Fade Out', 'Slide Down Fade'],
+  ['Exit Left + Fade', 'Slide Left Fade'],
+  ['Exit Right + Fade', 'Slide Right Fade'],
+  ['Blur + Zoom Out', 'Blur Zoom Out'],
 ]
 
 export function TextWorkspace({ selectedTextClip, onAddText, onUpdateText, notify }) {
