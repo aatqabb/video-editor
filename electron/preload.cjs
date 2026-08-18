@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('videoEditorDesktop', {
   },
   getSystemInfo: () => ipcRenderer.invoke('desktop:get-system-info'),
   getExportCapabilities: () => ipcRenderer.invoke('desktop:get-export-capabilities'),
+  createProxy: (sourcePath) => ipcRenderer.invoke('desktop:create-proxy', sourcePath),
   chooseExportPath: (options) => ipcRenderer.invoke('desktop:choose-export-path', options),
   startExport: (payload) => ipcRenderer.invoke('desktop:start-export', payload),
   cancelExport: () => ipcRenderer.invoke('desktop:cancel-export'),
