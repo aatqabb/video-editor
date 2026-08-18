@@ -98,11 +98,17 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
     }
   }
 
+  const ffmpeg = capabilities?.ffmpeg
+  const detectedGpu = capabilities?.gpuCapabilities
+  const gpuEncoders = detectedGpu?.availableHardwareEncoders || ffmpeg?.hardwareEncoders || []
+  const activeGpu = detectedGpu?.activeAdapter
+  const hardwareVideo = capabilities?.gpuFeatureStatus?.video_encode
+
   const start = async () => {
     if (!desktop?.startExport) return notify('Open the Windows desktop build to use real FFmpeg export')
-    if (!capabilities?.ffmpeg?.available) return notify('FFmpeg is not bundled/detected yet — export engine cannot start')
-    if (renderMode === 'GPU' && !(capabilities?.ffmpeg?.hardwareEncoders || []).length) {
-      return notify('GPU renderer selected, but no supported H.264 hardware encoder was detected')
+    if (!ffmpeg?.available) return notify('FFmpeg is not bundled/detected yet — export engine cannot start')
+    if (renderMode === 'GPU' && !gpuEncoders.length) {
+      return notify('GPU renderer selected, but no detected GPU has a matching supported H.264 hardware encoder')
     }
     let path = outputPath
     if (!path) path = await chooseLocation()
@@ -154,14 +160,11 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
     }
   }
 
-  const ffmpeg = capabilities?.ffmpeg
-  const gpuEncoders = ffmpeg?.hardwareEncoders || []
-  const hardwareVideo = capabilities?.gpuFeatureStatus?.video_encode
   const rendererHint = renderMode === 'CPU'
     ? 'CPU forces libx264 when available.'
     : renderMode === 'GPU'
-      ? gpuEncoders.length ? `GPU will use ${gpuEncoders[0]}.` : 'GPU requires a supported NVENC, QSV, or AMF encoder.'
-      : gpuEncoders.length ? `Auto prefers ${gpuEncoders[0]} and falls back to CPU if hardware export fails.` : 'Auto will use CPU when no supported hardware encoder is detected.'
+      ? gpuEncoders.length ? `GPU will use ${gpuEncoders[0]} on ${activeGpu?.vendorLabel || 'the detected adapter'}.` : 'GPU requires a detected NVIDIA, Intel, or AMD adapter with a matching NVENC, QSV, or AMF encoder.'
+      : gpuEncoders.length ? `Auto prefers ${gpuEncoders[0]} and falls back to CPU if hardware export fails.` : 'Auto will use CPU when no detected GPU has a matching supported hardware encoder.'
 
   return (
     <div className="export-workspace">
@@ -180,8 +183,10 @@ export default function ExportWorkspace({ projectName, projectSettings, clips, t
       <div className="export-capabilities">
         <div><span>Hardware acceleration</span><strong>{capabilities?.hardwareAcceleration ? 'Enabled' : desktop?.isDesktop ? 'Unavailable / checking' : 'Desktop only'}</strong></div>
         <div><span>Hardware video encode</span><strong>{hardwareVideo || 'Not checked'}</strong></div>
+        <div><span>Active GPU</span><strong>{activeGpu ? `${activeGpu.vendorLabel} · ${activeGpu.device}` : desktop?.isDesktop ? 'No adapter identified yet' : 'Desktop only'}</strong></div>
+        <div><span>Detected GPU vendors</span><strong>{detectedGpu?.recognizedVendors?.length ? detectedGpu.recognizedVendors.join(', ') : 'None identified yet'}</strong></div>
         <div><span>FFmpeg</span><strong className={ffmpeg?.available ? 'ok' : 'warn'}>{ffmpeg?.available ? 'Detected' : 'Not bundled/detected'}</strong></div>
-        <div><span>GPU encoders</span><strong>{gpuEncoders.length ? gpuEncoders.join(', ') : 'None detected yet'}</strong></div>
+        <div><span>Matched GPU encoders</span><strong>{gpuEncoders.length ? gpuEncoders.join(', ') : 'None matched yet'}</strong></div>
       </div>
 
       <div className="export-section-title">OUTPUT</div>
