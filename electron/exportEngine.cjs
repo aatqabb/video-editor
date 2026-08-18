@@ -83,6 +83,7 @@ function addMediaInputs(args, clips) {
     const source = clipInput(clip)
     if (!source) continue
     const key = `${clip.id}:${source}`
+    const inputIndex = inputMap.size
     if (clip.kind === 'image') {
       args.push('-loop', '1', '-t', String(seconds(clip.duration)), '-i', source)
     } else {
@@ -90,7 +91,7 @@ function addMediaInputs(args, clips) {
       if (sourceIn) args.push('-ss', String(sourceIn))
       args.push('-t', String(Math.max(.05, seconds(clip.duration) * Math.max(.1, Number(clip.video?.speed) || 1))), '-i', source)
     }
-    inputMap.set(key, inputMap.size + 1)
+    inputMap.set(key, inputIndex)
   }
   return inputMap
 }
