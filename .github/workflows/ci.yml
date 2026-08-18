@@ -24,5 +24,7 @@ jobs:
         run: npm run lint
       - name: Verify GPU capability contract
         run: npm run verify:gpu
+      - name: Verify responsiveness contract
+        run: npm run verify:responsiveness
       - name: Build
         run: npm run build

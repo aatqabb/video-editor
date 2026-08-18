@@ -1,3 +1,5 @@
+import { mapWithCooperativeYields, runWhenIdle } from './responsiveProcessing.js'
+
 const VIDEO_EXTENSIONS = new Set(['mp4', 'mov', 'm4v', 'webm', 'avi', 'mkv'])
 const AUDIO_EXTENSIONS = new Set(['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac', 'webm'])
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif'])
@@ -46,7 +48,7 @@ function createThumbnailInWorker(video, targetWidth, targetHeight) {
     typeof createImageBitmap === 'undefined' ||
     typeof OffscreenCanvas === 'undefined'
   ) {
-    return Promise.resolve(createThumbnailSync(video, targetWidth, targetHeight))
+    return runWhenIdle(() => createThumbnailSync(video, targetWidth, targetHeight))
   }
 
   return createImageBitmap(video).then((bitmap) => new Promise((resolve, reject) => {
@@ -94,7 +96,7 @@ async function processVideo(file, url) {
     try {
       thumbnail = await createThumbnailInWorker(video, targetWidth, targetHeight)
     } catch {
-      thumbnail = createThumbnailSync(video, targetWidth, targetHeight)
+      thumbnail = await runWhenIdle(() => createThumbnailSync(video, targetWidth, targetHeight))
     }
   }
 
@@ -121,7 +123,7 @@ function generateWaveformSync(channel, bins = 96) {
 }
 
 function generateWaveformInWorker(channel, bins = 96) {
-  if (typeof Worker === 'undefined') return Promise.resolve(generateWaveformSync(channel, bins))
+  if (typeof Worker === 'undefined') return runWhenIdle(() => generateWaveformSync(channel, bins))
 
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL('./waveformWorker.js', import.meta.url), { type: 'module' })
@@ -160,7 +162,7 @@ async function processAudio(file) {
     try {
       waveform = await generateWaveformInWorker(channel, 96)
     } catch {
-      waveform = generateWaveformSync(channel, 96)
+      waveform = await runWhenIdle(() => generateWaveformSync(channel, 96))
     }
     return { duration: Number.isFinite(buffer.duration) ? buffer.duration : 5, waveform }
   } finally {
@@ -229,16 +231,8 @@ export async function processMediaFile(file) {
   }
 }
 
-export async function processMediaFiles(files, onProgress) {
-  const results = []
-  const list = [...files]
-  for (let index = 0; index < list.length; index += 1) {
-    const item = await processMediaFile(list[index])
-    results.push(item)
-    onProgress?.(index + 1, list.length, item)
-    await new Promise((resolve) => window.setTimeout(resolve, 0))
-  }
-  return results
+export function processMediaFiles(files, onProgress) {
+  return mapWithCooperativeYields(files, processMediaFile, { yieldEvery: 1, onProgress })
 }
 
 export function formatMediaDuration(seconds) {
