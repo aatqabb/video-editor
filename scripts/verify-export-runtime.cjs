@@ -18,6 +18,22 @@ function outputExists(filePath) {
   return fs.existsSync(filePath) && fs.statSync(filePath).size > 1024
 }
 
+function ffprobeBinary(ffmpegBinary) {
+  const ext = path.extname(ffmpegBinary)
+  const base = path.basename(ffmpegBinary, ext).toLowerCase()
+  if (base === 'ffmpeg') return path.join(path.dirname(ffmpegBinary), `ffprobe${ext}`)
+  return process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe'
+}
+
+function probeVideoSize(ffmpegBinary, filePath) {
+  const result = run(ffprobeBinary(ffmpegBinary), [
+    '-v', 'error', '-select_streams', 'v:0',
+    '-show_entries', 'stream=width,height',
+    '-of', 'csv=p=0:s=x', filePath,
+  ], 'FFprobe video dimensions')
+  return String(result.stdout || '').trim()
+}
+
 async function main() {
   const capabilities = probeFfmpeg()
   assert(capabilities.available && capabilities.binary, 'FFmpeg is unavailable on this runtime')
@@ -80,6 +96,7 @@ async function main() {
     source4k,
   ], 'Synthetic 4K source generation')
   assert(outputExists(source4k), 'Synthetic 4K source was not created')
+  assert(probeVideoSize(capabilities.binary, source4k) === '3840x2160', 'Synthetic stress source is not actually 3840x2160')
 
   const source4kOut = path.join(temp, '4k-source-stress.mp4')
   const source4kJob = startExport({
@@ -90,6 +107,7 @@ async function main() {
   const source4kResult = await source4kJob.done
   assert(source4kResult.encoder === 'libx264', '4K source stress export did not use CPU H.264 encoder')
   assert(outputExists(source4kOut), '4K source-footage stress output was not created')
+  assert(probeVideoSize(capabilities.binary, source4kOut) === '3840x2160', '4K source-footage stress output is not 3840x2160')
 
   const cancelOut = path.join(temp, 'cancelled.mp4')
   const cancelManifest = {
@@ -109,7 +127,7 @@ async function main() {
   }
   assert(cancelled, 'Cancelled export unexpectedly completed successfully')
 
-  console.log('Export runtime smoke passed: MP4 720p/1080p/2K/4K, MP3, progress callbacks, 4K source-footage stress, and process cancellation.')
+  console.log('Export runtime smoke passed: MP4 720p/1080p/2K/4K, MP3, progress callbacks, verified 3840x2160 source-footage stress, and process cancellation.')
 }
 
 main().catch((error) => {
