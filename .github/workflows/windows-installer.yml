@@ -40,6 +40,42 @@ jobs:
           if ($installer.Length -lt 1MB) { throw "Installer is unexpectedly small: $($installer.Length) bytes" }
           Write-Host "Verified installer: $($installer.FullName) ($($installer.Length) bytes)"
 
+      - name: Silent install and shortcut smoke test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = Get-ChildItem -Path release -Filter 'VideoEditor-Setup-*.exe' -File | Select-Object -First 1
+          if (-not $installer) { throw 'Installer artifact is missing before smoke test' }
+
+          Write-Host "Installing $($installer.FullName) silently on fresh Windows runner"
+          $install = Start-Process -FilePath $installer.FullName -ArgumentList '/S' -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Silent installer exited with code $($install.ExitCode)" }
+
+          $desktopShortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Video Editor.lnk'
+          $startMenuShortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Video Editor.lnk'
+          if (-not (Test-Path $desktopShortcut)) { throw "Desktop shortcut was not created: $desktopShortcut" }
+          if (-not (Test-Path $startMenuShortcut)) { throw "Start Menu shortcut was not created: $startMenuShortcut" }
+
+          $shell = New-Object -ComObject WScript.Shell
+          $shortcut = $shell.CreateShortcut($startMenuShortcut)
+          $appExe = $shortcut.TargetPath
+          if (-not $appExe -or -not (Test-Path $appExe)) { throw "Installed application target is missing: $appExe" }
+          Write-Host "Installed application target: $appExe"
+
+          $app = Start-Process -FilePath $appExe -ArgumentList '--disable-gpu' -PassThru
+          Start-Sleep -Seconds 8
+          $app.Refresh()
+          if ($app.HasExited) { throw "Installed desktop app exited during startup smoke test with code $($app.ExitCode)" }
+          Stop-Process -Id $app.Id -Force
+          Write-Host 'Installed app stayed alive through startup smoke test'
+
+          $installDir = Split-Path $appExe -Parent
+          $uninstaller = Get-ChildItem -Path $installDir -Filter 'Uninstall*.exe' -File | Select-Object -First 1
+          if ($uninstaller) {
+            $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -Wait -PassThru
+            if ($uninstall.ExitCode -ne 0) { throw "Silent uninstaller exited with code $($uninstall.ExitCode)" }
+          }
+
       - name: Upload Setup.exe
         uses: actions/upload-artifact@v4
         with:
