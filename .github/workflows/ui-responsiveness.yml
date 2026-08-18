@@ -1,0 +1,36 @@
+name: UI Responsiveness
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/verify-ui-responsiveness.cjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ui-responsiveness.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/verify-ui-responsiveness.cjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ui-responsiveness.yml'
+
+jobs:
+  stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Run editor UI stress test
+        env:
+          ELECTRON_DISABLE_SANDBOX: '1'
+        run: xvfb-run -a npx electron --no-sandbox scripts/verify-ui-responsiveness.cjs
