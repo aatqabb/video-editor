@@ -9,7 +9,7 @@ function assert(condition, message) {
 }
 
 function run(binary, args, label) {
-  const result = spawnSync(binary, args, { encoding: 'utf8', windowsHide: true, timeout: 120000 })
+  const result = spawnSync(binary, args, { encoding: 'utf8', windowsHide: true, timeout: 180000 })
   if (result.status !== 0) throw new Error(`${label} failed: ${(result.stderr || result.stdout || '').slice(-2000)}`)
   return result
 }
@@ -72,6 +72,25 @@ async function main() {
   assert(outputExists(mp3), 'MP3 audio-only output was not created')
   assert(progressEvents > 0, 'No real FFmpeg progress callbacks were observed')
 
+  const source4k = path.join(temp, 'source-4k.mp4')
+  run(capabilities.binary, [
+    '-hide_banner', '-y',
+    '-f', 'lavfi', '-i', 'testsrc2=size=3840x2160:rate=30',
+    '-t', '1.2', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', '-pix_fmt', 'yuv420p',
+    source4k,
+  ], 'Synthetic 4K source generation')
+  assert(outputExists(source4k), 'Synthetic 4K source was not created')
+
+  const source4kOut = path.join(temp, '4k-source-stress.mp4')
+  const source4kJob = startExport({
+    settings: { width: 3840, height: 2160, fps: 30 },
+    clips: [{ id: 'v4k', type: 'video', trackId: 'V1', sourcePath: source4k, start: 0, duration: 1, video: { fitMode: 'Fit', scale: 100, opacity: 100 } }],
+    options: { format: 'mp4', resolution: '4K Ultra HD', fps: 30, quality: 'Low', renderMode: 'CPU', audioBitrate: '128k' },
+  }, source4kOut, () => {})
+  const source4kResult = await source4kJob.done
+  assert(source4kResult.encoder === 'libx264', '4K source stress export did not use CPU H.264 encoder')
+  assert(outputExists(source4kOut), '4K source-footage stress output was not created')
+
   const cancelOut = path.join(temp, 'cancelled.mp4')
   const cancelManifest = {
     settings: { width: 3840, height: 2160, fps: 60 },
@@ -90,7 +109,7 @@ async function main() {
   }
   assert(cancelled, 'Cancelled export unexpectedly completed successfully')
 
-  console.log('Export runtime smoke passed: MP4 720p/1080p/2K/4K, MP3, progress callbacks, and process cancellation.')
+  console.log('Export runtime smoke passed: MP4 720p/1080p/2K/4K, MP3, progress callbacks, 4K source-footage stress, and process cancellation.')
 }
 
 main().catch((error) => {
