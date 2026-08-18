@@ -22,5 +22,7 @@ jobs:
         run: npm ci
       - name: Lint
         run: npm run lint
+      - name: Verify GPU capability contract
+        run: npm run verify:gpu
       - name: Build
         run: npm run build
