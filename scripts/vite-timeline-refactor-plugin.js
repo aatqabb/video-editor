@@ -76,28 +76,60 @@ export function timelineRefactorPlugin() {
         `  const scrubFromEvent = (event) => {
     if (event.target.closest('.timeline-clip')) return
     if (event.button !== 0) return
+
+    const draggingPlayhead = Boolean(event.target.closest('.playhead'))
+    const pointerId = event.pointerId
+
+    if (draggingPlayhead) {
+      event.preventDefault()
+      event.stopPropagation()
+      setPlayhead(pointerToTime(event))
+
+      const cleanupDrag = () => {
+        window.removeEventListener('pointermove', onMove, true)
+        window.removeEventListener('pointerup', onUp, true)
+        window.removeEventListener('pointercancel', onCancel, true)
+      }
+      const onMove = (moveEvent) => {
+        if (moveEvent.pointerId !== pointerId) return
+        setPlayhead(pointerToTime(moveEvent))
+      }
+      const onUp = (upEvent) => {
+        if (upEvent.pointerId !== pointerId) return
+        setPlayhead(pointerToTime(upEvent))
+        cleanupDrag()
+      }
+      const onCancel = (cancelEvent) => {
+        if (cancelEvent.pointerId !== pointerId) return
+        cleanupDrag()
+      }
+
+      window.addEventListener('pointermove', onMove, true)
+      window.addEventListener('pointerup', onUp, true)
+      window.addEventListener('pointercancel', onCancel, true)
+      return
+    }
+
     const startX = event.clientX
     const startY = event.clientY
-    const pointerId = event.pointerId
     const clickTime = pointerToTime(event)
-
-    const cleanup = () => {
-      window.removeEventListener('pointerup', onUp, true)
-      window.removeEventListener('pointercancel', onCancel, true)
+    const cleanupClick = () => {
+      window.removeEventListener('pointerup', onClickUp, true)
+      window.removeEventListener('pointercancel', onClickCancel, true)
     }
-    const onUp = (upEvent) => {
+    const onClickUp = (upEvent) => {
       if (upEvent.pointerId !== pointerId) return
-      cleanup()
+      cleanupClick()
       const moved = Math.hypot(upEvent.clientX - startX, upEvent.clientY - startY)
       if (moved < 5) setPlayhead(clickTime)
     }
-    const onCancel = (cancelEvent) => {
+    const onClickCancel = (cancelEvent) => {
       if (cancelEvent.pointerId !== pointerId) return
-      cleanup()
+      cleanupClick()
     }
 
-    window.addEventListener('pointerup', onUp, true)
-    window.addEventListener('pointercancel', onCancel, true)
+    window.addEventListener('pointerup', onClickUp, true)
+    window.addEventListener('pointercancel', onClickCancel, true)
   }
 
   const onDragStart =`,

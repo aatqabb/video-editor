@@ -90,22 +90,38 @@ app.whenReady().then(async () => {
       const rect = ruler.getBoundingClientRect()
       const x = rect.left + rect.width * 0.65
       const y = rect.top + Math.max(2, rect.height / 2)
-      ruler.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: x, clientY: y }))
-      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: x, clientY: y }))
+      ruler.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 3, button: 0, clientX: x, clientY: y }))
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 3, button: 0, clientX: x, clientY: y }))
       await waitTask()
-      const afterLeft = document.querySelector('.playhead').getBoundingClientRect().left
-      if (Math.abs(afterLeft - beforeLeft) < 5) throw new Error('Playhead positioning failed offline')
+      const clickedLeft = document.querySelector('.playhead').getBoundingClientRect().left
+      if (Math.abs(clickedLeft - beforeLeft) < 5) throw new Error('Playhead positioning failed offline')
+
+      const dragPlayhead = document.querySelector('.playhead')
+      const dragStart = dragPlayhead.getBoundingClientRect()
+      const dragStartX = dragStart.left + Math.max(1, dragStart.width / 2)
+      const dragStartY = dragStart.top + Math.max(1, dragStart.height / 4)
+      const dragTargetX = Math.max(rect.left + 20, dragStartX - 120)
+      dragPlayhead.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 7, button: 0, clientX: dragStartX, clientY: dragStartY }))
+      window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 7, button: 0, clientX: dragTargetX, clientY: dragStartY }))
+      await waitTask()
+      const duringDragLeft = document.querySelector('.playhead').getBoundingClientRect().left
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 7, button: 0, clientX: dragTargetX, clientY: dragStartY }))
+      await waitTask()
+      const afterDragLeft = document.querySelector('.playhead').getBoundingClientRect().left
+      if (Math.abs(duringDragLeft - clickedLeft) < 20) throw new Error('Playhead did not move during held drag')
+      if (Math.abs(afterDragLeft - duringDragLeft) > 8) throw new Error('Playhead did not stop at drag release position')
 
       return {
         initialCount,
         duplicatedCount,
         deletedCount,
         undoDeleteCount,
-        playheadMovedPixels: Math.round(Math.abs(afterLeft - beforeLeft)),
+        playheadClickPixels: Math.round(Math.abs(clickedLeft - beforeLeft)),
+        playheadDragPixels: Math.round(Math.abs(afterDragLeft - clickedLeft)),
       }
     })()`)
 
-    console.log(`Offline editing smoke passed: ${result.initialCount} seeded clips, duplicate/delete/undo verified, playhead moved ${result.playheadMovedPixels}px, ${blockedRequests} network request(s) blocked.`)
+    console.log(`Offline editing smoke passed: ${result.initialCount} seeded clips, duplicate/delete/undo verified, playhead click moved ${result.playheadClickPixels}px and held-drag moved ${result.playheadDragPixels}px, ${blockedRequests} network request(s) blocked.`)
     clearTimeout(timeout)
     window.destroy()
     app.quit()
