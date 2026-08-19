@@ -129,7 +129,7 @@ export function premierePlayheadPlugin() {
       replaceOnce(
         'premiere-playhead-line',
         /<div className="playhead" style=\{\{ left: playhead \* pixelsPerSecond \}\} onPointerDown=\{scrubFromEvent\} \/>/,
-        '<div className="playhead" style={{ left: playhead * pixelsPerSecond }} aria-hidden="true" />',
+        '<div className="playhead" style={{ left: playhead * pixelsPerSecond }} aria-hidden="true" onPointerDown={startPlayheadDrag} />',
       )
 
       const required = ['premiere-scrub-handler', 'premiere-ruler-ticks', 'premiere-ruler-head', 'premiere-playhead-line']
