@@ -20,7 +20,7 @@ export function premierePlayheadPlugin() {
         'premiere-scrub-handler',
         /  const scrubFromEvent = \(event\) => \{[\s\S]*?\n  \}\n\n  const onDragStart =/,
         `  const scrubFromEvent = (event) => {
-    if (event.target.closest('.timeline-clip') || event.target.closest('.playhead-grab-handle')) return
+    if (event.target.closest('.timeline-clip') || event.target.closest('.ruler-playhead-head')) return
     if (event.button !== 0) return
 
     const startX = event.clientX
@@ -101,12 +101,38 @@ export function premierePlayheadPlugin() {
       )
 
       replaceOnce(
-        'premiere-playhead-handle',
-        /<div className="playhead" style=\{\{ left: playhead \* pixelsPerSecond \}\} onPointerDown=\{scrubFromEvent\} \/>/,
-        '<div className="playhead" style={{ left: playhead * pixelsPerSecond }} onPointerDown={startPlayheadDrag}><button type="button" className="playhead-grab-handle" aria-label="Drag playhead" title="Drag playhead" /></div>',
+        'premiere-ruler-ticks',
+        /\{Array\.from\(\{ length: 13 \}, \(_, index\) => index \* 10\)\.map\(\(seconds\) => <span key=\{seconds\} style=\{\{ left: seconds \* pixelsPerSecond \}\}>\{formatShortTime\(seconds\)\}<\/span>\)\}/,
+        `{Array.from({ length: TIMELINE_SECONDS + 1 }, (_, seconds) => (
+              <span
+                className={\`ruler-tick \${seconds % 10 === 0 ? 'major' : seconds % 5 === 0 ? 'mid' : 'minor'}\`}
+                key={seconds}
+                style={{ left: seconds * pixelsPerSecond }}
+              >{seconds % 10 === 0 ? formatShortTime(seconds) : ''}</span>
+            ))}`,
       )
 
-      const required = ['premiere-scrub-handler', 'premiere-playhead-handle']
+      replaceOnce(
+        'premiere-ruler-head',
+        /(<div className="time-ruler" style=\{\{ width: laneWidth \}\} onPointerDown=\{scrubFromEvent\}>)/,
+        `$1
+            <button
+              type="button"
+              className="ruler-playhead-head"
+              style={{ left: playhead * pixelsPerSecond }}
+              aria-label="Drag playhead"
+              title="Drag playhead"
+              onPointerDown={startPlayheadDrag}
+            />`,
+      )
+
+      replaceOnce(
+        'premiere-playhead-line',
+        /<div className="playhead" style=\{\{ left: playhead \* pixelsPerSecond \}\} onPointerDown=\{scrubFromEvent\} \/>/,
+        '<div className="playhead" style={{ left: playhead * pixelsPerSecond }} aria-hidden="true" />',
+      )
+
+      const required = ['premiere-scrub-handler', 'premiere-ruler-ticks', 'premiere-ruler-head', 'premiere-playhead-line']
       const missing = required.filter((name) => !applied.has(name))
       if (missing.length) throw new Error(`Premiere playhead refactor did not apply: ${missing.join(', ')}`)
 
