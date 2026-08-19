@@ -52,12 +52,12 @@ export function premierePlayheadPlugin() {
     event.preventDefault()
     event.stopPropagation()
 
-    const handle = event.currentTarget
+    const captureTarget = event.currentTarget
     const pointerId = event.pointerId
     let latestX = event.clientX
     let frame = 0
 
-    handle.setPointerCapture?.(pointerId)
+    captureTarget.setPointerCapture?.(pointerId)
     document.body.classList.add('timeline-playhead-dragging')
 
     const applyPosition = () => {
@@ -82,7 +82,7 @@ export function premierePlayheadPlugin() {
       window.removeEventListener('pointerup', onUp, true)
       window.removeEventListener('pointercancel', onCancel, true)
       document.body.classList.remove('timeline-playhead-dragging')
-      try { handle.releasePointerCapture?.(pointerId) } catch { /* already released */ }
+      try { captureTarget.releasePointerCapture?.(pointerId) } catch { /* capture may already be released */ }
     }
     const onMove = (moveEvent) => {
       if (moveEvent.pointerId !== pointerId) return
@@ -103,7 +103,7 @@ export function premierePlayheadPlugin() {
       replaceOnce(
         'premiere-playhead-handle',
         /<div className="playhead" style=\{\{ left: playhead \* pixelsPerSecond \}\} onPointerDown=\{scrubFromEvent\} \/>/,
-        '<div className="playhead" style={{ left: playhead * pixelsPerSecond }}><button type="button" className="playhead-grab-handle" aria-label="Drag playhead" title="Drag playhead" onPointerDown={startPlayheadDrag} /></div>',
+        '<div className="playhead" style={{ left: playhead * pixelsPerSecond }} onPointerDown={startPlayheadDrag}><button type="button" className="playhead-grab-handle" aria-label="Drag playhead" title="Drag playhead" /></div>',
       )
 
       const required = ['premiere-scrub-handler', 'premiere-playhead-handle']
