@@ -1,16 +1,17 @@
 .timeline-selection-marquee{position:fixed;z-index:120;border:1px solid #7db8ff;background:rgba(65,137,230,.16);box-shadow:0 0 0 1px rgba(0,0,0,.25) inset;pointer-events:none}
 .timeline-marquee-active,.timeline-marquee-active *{cursor:crosshair!important}
-.time-ruler{height:28px!important;z-index:24!important;background:#171719!important;border-bottom:1px solid #34343a!important;cursor:default!important;overflow:visible!important}
-.time-ruler .ruler-tick{position:absolute!important;top:0!important;height:28px!important;width:1px!important;padding:0!important;transform:none!important;color:#9a9aa1!important;font-size:9px!important;font-family:Consolas,monospace!important;pointer-events:none!important;border-left:1px solid #3a3a40!important}
-.time-ruler .ruler-tick.minor{height:7px!important;top:21px!important;border-left-color:#39393e!important}
-.time-ruler .ruler-tick.mid{height:11px!important;top:17px!important;border-left-color:#56565c!important}
-.time-ruler .ruler-tick.major{height:28px!important;top:0!important;border-left-color:#66666d!important;padding:4px 0 0 4px!important;white-space:nowrap!important}
-.ruler-playhead-head{position:absolute;z-index:60;top:0;width:22px;height:28px;transform:translateX(-11px);padding:0;border:0;background:transparent;cursor:ew-resize;touch-action:none;pointer-events:auto!important;outline:none}
-.ruler-playhead-head:before{content:'';position:absolute;left:5px;top:1px;width:12px;height:9px;border-radius:2px 2px 1px 1px;background:#4b9cff;box-shadow:0 1px 2px rgba(0,0,0,.55)}
-.ruler-playhead-head:after{content:'';position:absolute;left:7px;top:9px;border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #4b9cff}
-.ruler-playhead-head:hover:before,.timeline-playhead-dragging .ruler-playhead-head:before{background:#7db8ff}
-.ruler-playhead-head:hover:after,.timeline-playhead-dragging .ruler-playhead-head:after{border-top-color:#7db8ff}
+.time-ruler{height:32px!important;z-index:24!important;background:#171719!important;border-bottom:1px solid #34343a!important;cursor:default!important;overflow:visible!important;box-shadow:inset 0 -1px rgba(255,255,255,.025)}
+.time-ruler .ruler-tick{position:absolute!important;top:0!important;height:32px!important;width:1px!important;padding:0!important;transform:none!important;color:#a0a0a7!important;font-size:9px!important;font-family:Consolas,monospace!important;pointer-events:none!important;border-left:1px solid #38383d!important}
+.time-ruler .ruler-tick.minor{height:5px!important;top:27px!important;border-left-color:#303035!important}
+.time-ruler .ruler-tick.second{height:8px!important;top:24px!important;border-left-color:#45454b!important}
+.time-ruler .ruler-tick.mid{height:13px!important;top:19px!important;border-left-color:#5a5a61!important}
+.time-ruler .ruler-tick.major{height:32px!important;top:0!important;border-left-color:#707078!important;padding:4px 0 0 5px!important;white-space:nowrap!important;color:#b9b9bf!important}
+.ruler-playhead-head{position:absolute;z-index:80;top:0;width:34px;height:32px;transform:translateX(-7px);padding:0;border:0;background:transparent;cursor:ew-resize;touch-action:none;pointer-events:auto!important;outline:none}
+.ruler-playhead-head:before{content:'';position:absolute;left:7px;top:2px;width:19px;height:10px;border-radius:2px 2px 1px 1px;background:#4b9cff;box-shadow:0 1px 2px rgba(0,0,0,.65)}
+.ruler-playhead-head:after{content:'';position:absolute;left:7px;top:11px;width:0;height:0;border-top:7px solid #4b9cff;border-right:7px solid transparent}
+.ruler-playhead-head:hover:before,.timeline-playhead-dragging .ruler-playhead-head:before{background:#78b9ff}
+.ruler-playhead-head:hover:after,.timeline-playhead-dragging .ruler-playhead-head:after{border-top-color:#78b9ff}
 .ruler-playhead-head:focus-visible{outline:1px solid rgba(125,184,255,.9);outline-offset:1px}
-.playhead{width:2px!important;z-index:30!important;pointer-events:none!important;overflow:visible!important;background:#4b9cff!important}
+.playhead{width:1px!important;z-index:30!important;pointer-events:none!important;overflow:visible!important;background:#4b9cff!important;box-shadow:0 0 0 1px rgba(75,156,255,.08)}
 .playhead:before,.playhead:after{display:none!important}
 .timeline-playhead-dragging,.timeline-playhead-dragging *{cursor:ew-resize!important;user-select:none!important}
