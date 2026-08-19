@@ -56,12 +56,15 @@ export function premierePlayheadPlugin() {
     const pointerId = event.pointerId
     let latestX = event.clientX
     let frame = 0
+    let dragging = true
 
     captureTarget.setPointerCapture?.(pointerId)
     document.body.classList.add('timeline-playhead-dragging')
+    setPlayhead(pointerToTime({ clientX: latestX }))
 
     const applyPosition = () => {
       frame = 0
+      if (!dragging) return
       setPlayhead(pointerToTime({ clientX: latestX }))
     }
     const schedulePosition = (clientX) => {
@@ -70,6 +73,7 @@ export function premierePlayheadPlugin() {
     }
     const cleanupDrag = (finalEvent, commitFinal = true) => {
       if (finalEvent.pointerId !== pointerId) return
+      dragging = false
       if (frame) {
         window.cancelAnimationFrame(frame)
         frame = 0
@@ -78,6 +82,8 @@ export function premierePlayheadPlugin() {
         latestX = finalEvent.clientX
         setPlayhead(pointerToTime({ clientX: latestX }))
       }
+      captureTarget.removeEventListener('pointermove', onMove, true)
+      captureTarget.removeEventListener('lostpointercapture', onLostCapture, true)
       window.removeEventListener('pointermove', onMove, true)
       window.removeEventListener('pointerup', onUp, true)
       window.removeEventListener('pointercancel', onCancel, true)
@@ -87,11 +93,18 @@ export function premierePlayheadPlugin() {
     const onMove = (moveEvent) => {
       if (moveEvent.pointerId !== pointerId) return
       moveEvent.preventDefault()
+      moveEvent.stopPropagation()
       schedulePosition(moveEvent.clientX)
     }
     const onUp = (upEvent) => cleanupDrag(upEvent, true)
     const onCancel = (cancelEvent) => cleanupDrag(cancelEvent, false)
+    const onLostCapture = (lostEvent) => {
+      if (lostEvent.pointerId !== pointerId || !dragging) return
+      cleanupDrag(lostEvent, true)
+    }
 
+    captureTarget.addEventListener('pointermove', onMove, true)
+    captureTarget.addEventListener('lostpointercapture', onLostCapture, true)
     window.addEventListener('pointermove', onMove, true)
     window.addEventListener('pointerup', onUp, true)
     window.addEventListener('pointercancel', onCancel, true)
@@ -103,12 +116,12 @@ export function premierePlayheadPlugin() {
       replaceOnce(
         'premiere-ruler-ticks',
         /\{Array\.from\(\{ length: 13 \}, \(_, index\) => index \* 10\)\.map\(\(seconds\) => <span key=\{seconds\} style=\{\{ left: seconds \* pixelsPerSecond \}\}>\{formatShortTime\(seconds\)\}<\/span>\)\}/,
-        `{Array.from({ length: TIMELINE_SECONDS + 1 }, (_, seconds) => (
+        `{Array.from({ length: TIMELINE_SECONDS * 2 + 1 }, (_, index) => index / 2).map((seconds) => (
               <span
-                className={\`ruler-tick \${seconds % 10 === 0 ? 'major' : seconds % 5 === 0 ? 'mid' : 'minor'}\`}
+                className={\`ruler-tick \${Number.isInteger(seconds) && seconds % 10 === 0 ? 'major' : Number.isInteger(seconds) && seconds % 5 === 0 ? 'mid' : Number.isInteger(seconds) ? 'second' : 'minor'}\`}
                 key={seconds}
                 style={{ left: seconds * pixelsPerSecond }}
-              >{seconds % 10 === 0 ? formatShortTime(seconds) : ''}</span>
+              >{Number.isInteger(seconds) && seconds % 10 === 0 ? formatShortTime(seconds) : ''}</span>
             ))}`,
       )
 
@@ -129,7 +142,7 @@ export function premierePlayheadPlugin() {
       replaceOnce(
         'premiere-playhead-line',
         /<div className="playhead" style=\{\{ left: playhead \* pixelsPerSecond \}\} onPointerDown=\{scrubFromEvent\} \/>/,
-        '<div className="playhead" style={{ left: playhead * pixelsPerSecond }} aria-hidden="true" onPointerDown={startPlayheadDrag} />',
+        '<div className="playhead" style={{ left: playhead * pixelsPerSecond }} aria-hidden="true" />',
       )
 
       const required = ['premiere-scrub-handler', 'premiere-ruler-ticks', 'premiere-ruler-head', 'premiere-playhead-line']
