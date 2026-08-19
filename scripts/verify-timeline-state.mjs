@@ -31,4 +31,18 @@ assert.equal(moved.find((clip) => clip.id === 'b').start, 15)
 assert.equal(moved.find((clip) => clip.id === 'a').trackId, 'V1')
 assert.equal(moved.find((clip) => clip.id === 'b').trackId, 'V1')
 assert.equal(moved.find((clip) => clip.id === 'c').start, 1)
+
+const mixedMoved = moveSelectedClips({
+  clips,
+  selectedIds: ['a', 'c'],
+  anchorId: 'a',
+  targetTrackId: 'V1',
+  tracks,
+  requestedAnchorStart: 20,
+  timelineSeconds: 120,
+})
+assert.equal(mixedMoved.find((clip) => clip.id === 'a').start, 20)
+assert.equal(mixedMoved.find((clip) => clip.id === 'c').start, 19)
+assert.equal(mixedMoved.find((clip) => clip.id === 'c').trackId, 'A1')
+
 console.log('timeline state helpers verified')
