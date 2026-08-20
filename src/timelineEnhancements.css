@@ -15,3 +15,7 @@
 .playhead{width:1px!important;z-index:30!important;pointer-events:none!important;overflow:visible!important;background:#4b9cff!important;box-shadow:0 0 0 1px rgba(75,156,255,.08)}
 .playhead:before,.playhead:after{display:none!important}
 .timeline-playhead-dragging,.timeline-playhead-dragging *{cursor:ew-resize!important;user-select:none!important}
+.timeline-clip{touch-action:none;transform:translate3d(0,0,0);backface-visibility:hidden}
+.timeline-clip-dragging,.timeline-clip-dragging *{cursor:grabbing!important;user-select:none!important}
+.timeline-clip-dragging .timeline-clip.selected{box-shadow:0 0 0 1px rgba(125,184,255,.95),0 4px 14px rgba(0,0,0,.35)!important}
+.track-lane.timeline-drag-target{background-color:rgba(75,156,255,.055)!important;box-shadow:inset 0 0 0 1px rgba(75,156,255,.22)}
