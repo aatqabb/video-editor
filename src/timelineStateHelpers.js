@@ -14,7 +14,7 @@ export function addTimelineTrack(tracks, type) {
   return { tracks: [...tracks, track], track }
 }
 
-export function moveSelectedClips({ clips, selectedIds, anchorId, targetTrackId, tracks, requestedAnchorStart, timelineSeconds }) {
+export function moveSelectedClips({ clips, selectedIds, anchorId, targetTrackId, tracks, requestedAnchorStart }) {
   const selected = new Set(selectedIds)
   const anchor = clips.find((clip) => clip.id === anchorId)
   const targetTrack = tracks.find((track) => track.id === targetTrackId)
@@ -24,9 +24,10 @@ export function moveSelectedClips({ clips, selectedIds, anchorId, targetTrackId,
   const moving = selectedUnlocked.length ? selectedUnlocked : [anchor]
   const movingIds = new Set(moving.map((clip) => clip.id))
   const minStart = Math.min(...moving.map((clip) => clip.start))
-  const maxEnd = Math.max(...moving.map((clip) => clip.start + clip.duration))
   let delta = requestedAnchorStart - anchor.start
-  delta = Math.max(-minStart, Math.min(timelineSeconds - maxEnd, delta))
+  // Timeline grows with content, so moving right has no artificial boundary.
+  // Only keep clips from crossing before time zero.
+  delta = Math.max(-minStart, delta)
 
   const anchorTypeTracks = tracks.filter((track) => track.type === anchor.type)
   const anchorTrackIndex = anchorTypeTracks.findIndex((track) => track.id === anchor.trackId)
