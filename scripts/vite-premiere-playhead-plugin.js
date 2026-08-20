@@ -116,7 +116,7 @@ export function premierePlayheadPlugin() {
       replaceOnce(
         'premiere-ruler-ticks',
         /\{Array\.from\(\{ length: 13 \}, \(_, index\) => index \* 10\)\.map\(\(seconds\) => <span key=\{seconds\} style=\{\{ left: seconds \* pixelsPerSecond \}\}>\{formatShortTime\(seconds\)\}<\/span>\)\}/,
-        `{Array.from({ length: TIMELINE_SECONDS * 2 + 1 }, (_, index) => index / 2).map((seconds) => (
+        `{Array.from({ length: timelineSeconds * 2 + 1 }, (_, index) => index / 2).map((seconds) => (
               <span
                 className={\`ruler-tick \${Number.isInteger(seconds) && seconds % 10 === 0 ? 'major' : Number.isInteger(seconds) && seconds % 5 === 0 ? 'mid' : Number.isInteger(seconds) ? 'second' : 'minor'}\`}
                 key={seconds}
