@@ -3,11 +3,11 @@ export function smoothTimelineDragPlugin() {
     name: 'video-editor-smooth-timeline-drag',
     enforce: 'pre',
     transform(code, id) {
-      if (!id.endsWith('/src/App.jsx') && !id.endsWith('\\src\\App.jsx')) return null
+      const normalized = id.replaceAll('\\', '/')
+      if (!normalized.endsWith('/src/App.jsx')) return null
 
       let next = code
       const applied = new Set()
-
       const replaceOnce = (name, pattern, replacement) => {
         const updated = next.replace(pattern, replacement)
         if (updated !== next) {
@@ -22,7 +22,6 @@ export function smoothTimelineDragPlugin() {
           /  const onDragStart = \(event, clip\) => \{/,
           `  const startClipPointerDrag = (event, clip) => {
     if (event.button !== 0 || event.target.closest('.trim-handle')) return
-
     const sourceTrack = tracks.find((item) => item.id === clip.trackId)
     if (sourceTrack?.locked) {
       event.preventDefault()
@@ -33,25 +32,30 @@ export function smoothTimelineDragPlugin() {
     event.preventDefault()
     event.stopPropagation()
 
-    const pointerId = event.pointerId
-    const captureTarget = event.currentTarget
     const startX = event.clientX
     const startY = event.clientY
     let latestX = startX
     let latestY = startY
-    let frame = 0
     let moved = false
+    let frame = 0
 
-    const groupModifier = event.ctrlKey || event.metaKey || event.shiftKey
-    const idsToMove = groupModifier && selectedClipIds.includes(clip.id) && selectedClipIds.length > 1
+    // If the grabbed clip is already part of a multi-selection, drag that group.
+    // Otherwise this is an explicit single-clip drag and stale selections are cleared.
+    const idsToMove = selectedClipIds.includes(clip.id) && selectedClipIds.length > 1
       ? [...selectedClipIds]
       : [clip.id]
-    if (!groupModifier) setSelectedClipIds([clip.id])
-    else if (!selectedClipIds.includes(clip.id)) setSelectedClipIds([clip.id])
+    if (idsToMove.length === 1) setSelectedClipIds([clip.id])
 
     const nodes = idsToMove
-      .map((id) => document.querySelector(\`.timeline-clip[data-clip-id="\${CSS.escape(id)}"]\`))
+      .map((clipId) => document.querySelector(\`.timeline-clip[data-clip-id="\${CSS.escape(clipId)}"]\`))
       .filter(Boolean)
+
+    const resolveLane = (x, y) => {
+      nodes.forEach((node) => { node.style.pointerEvents = 'none' })
+      const lane = document.elementFromPoint(x, y)?.closest?.('.track-lane') || null
+      nodes.forEach((node) => { node.style.pointerEvents = '' })
+      return lane
+    }
 
     const clearPreview = () => {
       nodes.forEach((node) => {
@@ -63,17 +67,7 @@ export function smoothTimelineDragPlugin() {
       document.querySelectorAll('.track-lane.timeline-drag-target').forEach((lane) => lane.classList.remove('timeline-drag-target'))
     }
 
-    const resolveTargetTrack = (x, y) => {
-      nodes.forEach((node) => { node.style.pointerEvents = 'none' })
-      const lane = document.elementFromPoint(x, y)?.closest?.('.track-lane')
-      nodes.forEach((node) => { node.style.pointerEvents = '' })
-      const trackId = lane?.dataset?.trackId || clip.trackId
-      const track = tracks.find((item) => item.id === trackId)
-      const valid = Boolean(track && !track.locked && track.type === clip.type)
-      return { lane, track, trackId: valid ? trackId : clip.trackId, valid }
-    }
-
-    const paintPreview = () => {
+    const paint = () => {
       frame = 0
       const dx = latestX - startX
       const dy = latestY - startY
@@ -82,90 +76,65 @@ export function smoothTimelineDragPlugin() {
         node.style.willChange = 'transform'
         node.style.zIndex = '95'
       })
-
       document.querySelectorAll('.track-lane.timeline-drag-target').forEach((lane) => lane.classList.remove('timeline-drag-target'))
-      const target = resolveTargetTrack(latestX, latestY)
-      if (target.valid && target.lane) target.lane.classList.add('timeline-drag-target')
+      const lane = resolveLane(latestX, latestY)
+      const track = tracks.find((item) => item.id === lane?.dataset?.trackId)
+      if (lane && track && !track.locked && track.type === clip.type) lane.classList.add('timeline-drag-target')
     }
 
-    const schedulePreview = (moveEvent) => {
+    const onMove = (moveEvent) => {
       latestX = moveEvent.clientX
       latestY = moveEvent.clientY
       if (Math.hypot(latestX - startX, latestY - startY) > 2) moved = true
-      if (!frame) frame = window.requestAnimationFrame(paintPreview)
+      moveEvent.preventDefault()
+      if (!frame) frame = window.requestAnimationFrame(paint)
     }
 
     const cleanup = () => {
       if (frame) window.cancelAnimationFrame(frame)
-      frame = 0
       clearPreview()
       document.body.classList.remove('timeline-clip-dragging')
-      document.removeEventListener('pointermove', onMove, true)
-      document.removeEventListener('pointerup', onUp, true)
-      document.removeEventListener('pointercancel', onCancel, true)
-      captureTarget.removeEventListener('pointermove', onMove, true)
-      captureTarget.removeEventListener('lostpointercapture', onLostCapture, true)
-      try { captureTarget.releasePointerCapture?.(pointerId) } catch { /* capture may already be gone */ }
+      window.removeEventListener('pointermove', onMove, true)
+      window.removeEventListener('pointerup', onUp, true)
+      window.removeEventListener('pointercancel', onCancel, true)
     }
 
-    const onMove = (moveEvent) => {
-      if (moveEvent.pointerId !== pointerId) return
-      moveEvent.preventDefault()
-      moveEvent.stopPropagation()
-      schedulePreview(moveEvent)
-    }
-
-    const commitAt = (clientX, clientY) => {
-      const dx = clientX - startX
-      const target = resolveTargetTrack(clientX, clientY)
-      if (!target.valid) {
-        const targetTrackId = target.lane?.dataset?.trackId
-        const targetTrack = tracks.find((track) => track.id === targetTrackId)
-        notify(targetTrack?.locked ? \`\${targetTrackId} is locked\` : \`Drop \${clip.type} clips on \${clip.type} tracks\`)
-        return
-      }
-
+    const commit = () => {
+      if (!moved) return
+      const dx = latestX - startX
+      const lane = resolveLane(latestX, latestY)
+      const candidate = tracks.find((item) => item.id === lane?.dataset?.trackId)
+      // Horizontal movement must still commit even when elementFromPoint misses the lane.
+      // Vertical reassignment happens only for a valid unlocked same-type lane.
+      const targetTrackId = candidate && !candidate.locked && candidate.type === clip.type
+        ? candidate.id
+        : clip.trackId
       const requestedAnchorStart = snapTime(Math.max(0, clip.start + dx / pixelsPerSecond), clip.id)
       commitClips((current) => moveSelectedClips({
         clips: current,
         selectedIds: idsToMove,
         anchorId: clip.id,
-        targetTrackId: target.track.id,
+        targetTrackId,
         tracks,
         requestedAnchorStart,
       }))
       setSelectedClipIds(idsToMove)
-      notify(idsToMove.length > 1 ? \`Moved \${idsToMove.length} selected clips\` : \`Moved to \${target.track.id}\`)
+      notify(idsToMove.length > 1 ? \`Moved \${idsToMove.length} selected clips\` : \`Moved to \${targetTrackId}\`)
     }
 
     const onUp = (upEvent) => {
-      if (upEvent.pointerId !== pointerId) return
       latestX = upEvent.clientX
       latestY = upEvent.clientY
-      const shouldCommit = moved
       cleanup()
-      if (shouldCommit) commitAt(latestX, latestY)
+      commit()
     }
 
-    const onCancel = (cancelEvent) => {
-      if (cancelEvent.pointerId !== pointerId) return
-      cleanup()
-    }
+    const onCancel = () => cleanup()
 
-    const onLostCapture = (lostEvent) => {
-      if (lostEvent.pointerId !== pointerId) return
-      const shouldCommit = moved
-      cleanup()
-      if (shouldCommit) commitAt(latestX, latestY)
-    }
-
-    try { captureTarget.setPointerCapture?.(pointerId) } catch { /* document listeners are the fallback */ }
     document.body.classList.add('timeline-clip-dragging')
-    captureTarget.addEventListener('pointermove', onMove, true)
-    captureTarget.addEventListener('lostpointercapture', onLostCapture, true)
-    document.addEventListener('pointermove', onMove, true)
-    document.addEventListener('pointerup', onUp, true)
-    document.addEventListener('pointercancel', onCancel, true)
+    window.addEventListener('pointermove', onMove, true)
+    window.addEventListener('pointerup', onUp, true)
+    window.addEventListener('pointercancel', onCancel, true)
   }
 
   const onDragStart = (event, clip) => {`,
@@ -186,6 +155,16 @@ export function smoothTimelineDragPlugin() {
         'onPointerDown={(event) => startClipPointerDrag(event, clip)}',
       )
 
+      if (!/data-clip-id=\{clip\.id\}/.test(next)) {
+        replaceOnce(
+          'clip-data-id',
+          /(className=\{`timeline-clip[^\n]+\n)(\s+style=)/,
+          '$1                    data-clip-id={clip.id}\n$2',
+        )
+      } else {
+        applied.add('clip-data-id')
+      }
+
       if (!/data-track-id=\{track\.id\}/.test(next)) {
         replaceOnce(
           'track-data-id',
@@ -196,7 +175,7 @@ export function smoothTimelineDragPlugin() {
         applied.add('track-data-id')
       }
 
-      const required = ['pointer-drag-handler', 'disable-native-drag', 'pointer-down-wire', 'track-data-id']
+      const required = ['pointer-drag-handler', 'disable-native-drag', 'pointer-down-wire', 'clip-data-id', 'track-data-id']
       const missing = required.filter((name) => !applied.has(name))
       if (missing.length) throw new Error(`Smooth timeline drag refactor did not apply: ${missing.join(', ')}`)
 
