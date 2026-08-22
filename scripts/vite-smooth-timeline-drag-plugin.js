@@ -42,9 +42,12 @@ export function smoothTimelineDragPlugin() {
     let frame = 0
     let moved = false
 
-    const selectedNow = selectedClipIds.includes(clip.id) ? [...selectedClipIds] : [clip.id]
-    const idsToMove = selectedNow.length ? selectedNow : [clip.id]
-    if (!selectedClipIds.includes(clip.id)) setSelectedClipIds([clip.id])
+    const groupModifier = event.ctrlKey || event.metaKey || event.shiftKey
+    const idsToMove = groupModifier && selectedClipIds.includes(clip.id) && selectedClipIds.length > 1
+      ? [...selectedClipIds]
+      : [clip.id]
+    if (!groupModifier) setSelectedClipIds([clip.id])
+    else if (!selectedClipIds.includes(clip.id)) setSelectedClipIds([clip.id])
 
     const nodes = idsToMove
       .map((id) => document.querySelector(\`.timeline-clip[data-clip-id="\${CSS.escape(id)}"]\`))
@@ -61,7 +64,6 @@ export function smoothTimelineDragPlugin() {
     }
 
     const resolveTargetTrack = (x, y) => {
-      // Temporarily ignore the dragged clips so elementFromPoint can see the lane below.
       nodes.forEach((node) => { node.style.pointerEvents = 'none' })
       const lane = document.elementFromPoint(x, y)?.closest?.('.track-lane')
       nodes.forEach((node) => { node.style.pointerEvents = '' })
@@ -128,12 +130,12 @@ export function smoothTimelineDragPlugin() {
         clips: current,
         selectedIds: idsToMove,
         anchorId: clip.id,
-        targetTrackId: target.trackId,
+        targetTrackId: target.track.id,
         tracks,
         requestedAnchorStart,
       }))
       setSelectedClipIds(idsToMove)
-      notify(idsToMove.length > 1 ? \`Moved \${idsToMove.length} selected clips\` : \`Moved to \${target.trackId}\`)
+      notify(idsToMove.length > 1 ? \`Moved \${idsToMove.length} selected clips\` : \`Moved to \${target.track.id}\`)
     }
 
     const onUp = (upEvent) => {
