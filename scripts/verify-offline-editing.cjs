@@ -60,7 +60,8 @@ app.whenReady().then(async () => {
       const firstClip = await waitFor(() => document.querySelector('.timeline-clip'))
       const ruler = await waitFor(() => document.querySelector('.time-ruler'))
       const playhead = await waitFor(() => document.querySelector('.playhead'))
-      if (!firstClip || !ruler || !playhead) throw new Error('Core editor timeline did not render offline')
+      const playheadHandle = await waitFor(() => document.querySelector('.ruler-playhead-head'))
+      if (!firstClip || !ruler || !playhead || !playheadHandle) throw new Error('Core editor timeline did not render offline')
 
       const initialCount = document.querySelectorAll('.timeline-clip').length
       if (initialCount < 2) throw new Error('Expected seeded timeline clips for offline smoke test')
@@ -102,12 +103,12 @@ app.whenReady().then(async () => {
       const clickedLeft = document.querySelector('.playhead').getBoundingClientRect().left
       if (Math.abs(clickedLeft - beforeLeft) < 5) throw new Error('Playhead positioning failed offline')
 
-      const dragPlayhead = document.querySelector('.playhead')
-      const dragStart = dragPlayhead.getBoundingClientRect()
+      const dragHandle = document.querySelector('.ruler-playhead-head')
+      const dragStart = dragHandle.getBoundingClientRect()
       const dragStartX = dragStart.left + Math.max(1, dragStart.width / 2)
-      const dragStartY = dragStart.top + Math.max(1, dragStart.height / 4)
+      const dragStartY = dragStart.top + Math.max(1, dragStart.height / 2)
       const dragTargetX = Math.max(rect.left + 20, dragStartX - 120)
-      dragPlayhead.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 7, button: 0, clientX: dragStartX, clientY: dragStartY }))
+      dragHandle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 7, button: 0, clientX: dragStartX, clientY: dragStartY }))
       window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 7, button: 0, clientX: dragTargetX, clientY: dragStartY }))
       await waitTask()
       const duringDragLeft = document.querySelector('.playhead').getBoundingClientRect().left
