@@ -12,6 +12,9 @@ import { trackDeletePlugin } from './scripts/vite-track-delete-plugin.js'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Electron loads dist/index.html through file://, so production assets must be
+  // referenced relatively instead of from /assets at the filesystem root.
+  base: './',
   // Transform order matters. Duration sync must patch the original Monitor
   // signature before playback sync injects media helpers around that component.
   // The playhead transform must also run before smooth drag so it cannot erase
