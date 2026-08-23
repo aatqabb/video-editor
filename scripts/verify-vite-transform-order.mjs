@@ -3,6 +3,8 @@ import { normalizeLineEndingsPlugin } from './normalize-line-endings-plugin.js'
 import { timelineRefactorPlugin } from './vite-timeline-refactor-plugin.js'
 import { playbackMediaPlugin } from './vite-playback-media-plugin.js'
 import { unlimitedTimelineImportPlugin } from './vite-unlimited-timeline-import-plugin.js'
+import { durationUiSyncPlugin } from './vite-duration-ui-sync-plugin.js'
+import { programPlaybackSyncPlugin } from './vite-program-playback-sync-plugin.js'
 import { premierePlayheadPlugin } from './vite-premiere-playhead-plugin.js'
 import { smoothTimelineDragPlugin } from './vite-smooth-timeline-drag-plugin.js'
 
@@ -13,6 +15,8 @@ for (const plugin of [
   timelineRefactorPlugin(),
   playbackMediaPlugin(),
   unlimitedTimelineImportPlugin(),
+  durationUiSyncPlugin(),
+  programPlaybackSyncPlugin(),
   premierePlayheadPlugin(),
   smoothTimelineDragPlugin(),
 ]) {
@@ -29,6 +33,10 @@ const checks = [
   ['media import creates fresh layer at playhead', code.includes('added on a new ${timelineType} layer at playhead')],
   ['video import creates linked audio layer', code.includes("kind: 'linked-video-audio'")],
   ['right trim has no fixed timeline cap', !code.includes('Math.min(timelineSeconds, proposedEnd)')],
+  ['ruler follows real content end without 60-second tail', code.includes('const required = Math.max(10, contentEnd + 1, playhead + 1)') && !code.includes('contentEnd + 60')],
+  ['program monitor receives live timeline duration', code.includes('timelineDuration={timelineSeconds}')],
+  ['program monitor renders current / total duration', code.includes('${formatTime(playhead)} / ${formatTime(timelineDuration)}')],
+  ['hard-coded monitor timecode is removed', !code.includes('<span>00:00:05:11</span>')],
 ]
 
 let failed = false
@@ -37,4 +45,4 @@ for (const [name, ok] of checks) {
   if (!ok) failed = true
 }
 if (failed) process.exit(1)
-console.log('\nVite transform order preserves timeline drag, playhead, import and unlimited-timeline behavior together.')
+console.log('\nVite transform order preserves timeline drag, playhead, import, unlimited timeline and real media-duration UI behavior together.')
