@@ -47,7 +47,7 @@ app.whenReady().then(async () => {
         }
         return null
       }
-      const waitTask = () => new Promise((resolve) => setTimeout(resolve, 60))
+      const waitTask = () => new Promise((resolve) => setTimeout(resolve, 80))
       const key = (key, options = {}) => window.dispatchEvent(new KeyboardEvent('keydown', {
         key,
         code: options.code || '',
@@ -66,6 +66,7 @@ app.whenReady().then(async () => {
       if (initialCount < 2) throw new Error('Expected seeded timeline clips for offline smoke test')
 
       firstClip.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await waitTask()
       key('d', { ctrlKey: true })
       await waitTask()
       const duplicatedCount = document.querySelectorAll('.timeline-clip').length
@@ -78,7 +79,8 @@ app.whenReady().then(async () => {
 
       const selected = document.querySelector('.timeline-clip')
       selected.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-      key('Delete')
+      await waitTask()
+      key('Delete', { code: 'Delete' })
       await waitTask()
       const deletedCount = document.querySelectorAll('.timeline-clip').length
       if (deletedCount !== initialCount - 1) throw new Error(\`Delete failed offline: expected \${initialCount - 1}, got \${deletedCount}\`)
@@ -88,11 +90,13 @@ app.whenReady().then(async () => {
       const undoDeleteCount = document.querySelectorAll('.timeline-clip').length
       if (undoDeleteCount !== initialCount) throw new Error(\`Undo delete failed offline: expected \${initialCount}, got \${undoDeleteCount}\`)
 
-      const beforeLeft = playhead.getBoundingClientRect().left
-      const rect = ruler.getBoundingClientRect()
+      const livePlayhead = document.querySelector('.playhead')
+      const liveRuler = document.querySelector('.time-ruler')
+      const beforeLeft = livePlayhead.getBoundingClientRect().left
+      const rect = liveRuler.getBoundingClientRect()
       const x = rect.left + rect.width * 0.65
       const y = rect.top + Math.max(2, rect.height / 2)
-      ruler.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 3, button: 0, clientX: x, clientY: y }))
+      liveRuler.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 3, button: 0, clientX: x, clientY: y }))
       window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 3, button: 0, clientX: x, clientY: y }))
       await waitTask()
       const clickedLeft = document.querySelector('.playhead').getBoundingClientRect().left
