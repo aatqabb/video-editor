@@ -1,0 +1,40 @@
+import fs from 'node:fs'
+import { normalizeLineEndingsPlugin } from './normalize-line-endings-plugin.js'
+import { timelineRefactorPlugin } from './vite-timeline-refactor-plugin.js'
+import { playbackMediaPlugin } from './vite-playback-media-plugin.js'
+import { unlimitedTimelineImportPlugin } from './vite-unlimited-timeline-import-plugin.js'
+import { premierePlayheadPlugin } from './vite-premiere-playhead-plugin.js'
+import { smoothTimelineDragPlugin } from './vite-smooth-timeline-drag-plugin.js'
+
+let code = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
+const id = '/repo/src/App.jsx'
+for (const plugin of [
+  normalizeLineEndingsPlugin(),
+  timelineRefactorPlugin(),
+  playbackMediaPlugin(),
+  unlimitedTimelineImportPlugin(),
+  premierePlayheadPlugin(),
+  smoothTimelineDragPlugin(),
+]) {
+  const result = plugin.transform?.(code, id)
+  if (result?.code) code = result.code
+}
+
+const checks = [
+  ['smooth clip pointer handler survives playhead transform', code.includes('const startClipPointerDrag = (event, clip) =>')],
+  ['timeline clips use pointer drag wiring', code.includes('onPointerDown={(event) => startClipPointerDrag(event, clip)}')],
+  ['native clip drag is disabled', code.includes('draggable={false}')],
+  ['dynamic timeline prop is wired', code.includes('timelineSeconds={timelineSeconds}')],
+  ['timeline width uses dynamic duration', code.includes('const laneWidth = timelineSeconds * pixelsPerSecond')],
+  ['media import creates fresh layer at playhead', code.includes('added on a new ${timelineType} layer at playhead')],
+  ['video import creates linked audio layer', code.includes("kind: 'linked-video-audio'")],
+  ['right trim has no fixed timeline cap', !code.includes('Math.min(timelineSeconds, proposedEnd)')],
+]
+
+let failed = false
+for (const [name, ok] of checks) {
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`)
+  if (!ok) failed = true
+}
+if (failed) process.exit(1)
+console.log('\nVite transform order preserves timeline drag, playhead, import and unlimited-timeline behavior together.')
