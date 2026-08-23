@@ -7,6 +7,9 @@ on:
       - 'electron/**'
       - 'src/**'
       - 'scripts/verify-offline-editing.cjs'
+      - 'scripts/verify-windows-native-picker.mjs'
+      - 'scripts/verify-gpu-runtime.mjs'
+      - 'scripts/vite-*.js'
       - 'vite.config.*'
       - '.github/workflows/windows-installer.yml'
   workflow_dispatch:
@@ -29,6 +32,13 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Verify Windows native picker and installer contract
+        run: node scripts/verify-windows-native-picker.mjs
+
+      - name: Inventory hosted Windows GPU runtime capabilities
+        continue-on-error: true
+        run: node scripts/verify-gpu-runtime.mjs
 
       - name: Build Windows Setup.exe
         run: npm run package:win
