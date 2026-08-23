@@ -6,6 +6,7 @@ on:
       - 'package.json'
       - 'electron/**'
       - 'src/**'
+      - 'scripts/prepare-windows-ffmpeg.cjs'
       - 'scripts/verify-offline-editing.cjs'
       - 'scripts/verify-windows-native-picker.mjs'
       - 'scripts/verify-gpu-runtime.mjs'
@@ -36,12 +37,28 @@ jobs:
       - name: Verify Windows native picker and installer contract
         run: node scripts/verify-windows-native-picker.mjs
 
-      - name: Inventory hosted Windows GPU runtime capabilities
-        continue-on-error: true
-        run: node scripts/verify-gpu-runtime.mjs
-
-      - name: Build Windows Setup.exe
+      - name: Build Windows Setup.exe with bundled FFmpeg
         run: npm run package:win
+
+      - name: Verify bundled FFmpeg runtime
+        shell: pwsh
+        run: |
+          $ffmpeg = Join-Path $PWD 'release\win-unpacked\resources\ffmpeg\ffmpeg.exe'
+          $ffprobe = Join-Path $PWD 'release\win-unpacked\resources\ffmpeg\ffprobe.exe'
+          if (-not (Test-Path $ffmpeg)) { throw "Bundled ffmpeg.exe missing: $ffmpeg" }
+          if (-not (Test-Path $ffprobe)) { throw "Bundled ffprobe.exe missing: $ffprobe" }
+          & $ffmpeg -hide_banner -version
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled ffmpeg.exe failed to start' }
+          $encoders = (& $ffmpeg -hide_banner -encoders 2>&1 | Out-String)
+          if ($encoders -notmatch 'libx264') { throw 'Bundled FFmpeg is missing libx264 CPU H.264 encoder' }
+          if ($encoders -notmatch 'aac') { throw 'Bundled FFmpeg is missing AAC audio encoder' }
+          Write-Host 'Bundled FFmpeg/ffprobe and core export encoders verified.'
+
+      - name: Inventory bundled Windows GPU capabilities
+        continue-on-error: true
+        env:
+          VIDEO_EDITOR_FFMPEG: ${{ github.workspace }}\release\win-unpacked\resources\ffmpeg\ffmpeg.exe
+        run: node scripts/verify-gpu-runtime.mjs
 
       - name: Verify basic editing with network blocked
         run: npx electron scripts/verify-offline-editing.cjs
@@ -51,7 +68,7 @@ jobs:
         run: |
           $installer = Get-ChildItem -Path release -Filter 'VideoEditor-Setup-*.exe' -File | Select-Object -First 1
           if (-not $installer) { throw 'Windows Setup.exe was not produced' }
-          if ($installer.Length -lt 1MB) { throw "Installer is unexpectedly small: $($installer.Length) bytes" }
+          if ($installer.Length -lt 50MB) { throw "Installer is unexpectedly small for bundled media runtime: $($installer.Length) bytes" }
           Write-Host "Verified installer: $($installer.FullName) ($($installer.Length) bytes)"
 
       - name: Silent install and shortcut smoke test
@@ -75,6 +92,11 @@ jobs:
           $appExe = $shortcut.TargetPath
           if (-not $appExe -or -not (Test-Path $appExe)) { throw "Installed application target is missing: $appExe" }
           Write-Host "Installed application target: $appExe"
+
+          $installedFfmpeg = Join-Path (Split-Path $appExe -Parent) 'resources\ffmpeg\ffmpeg.exe'
+          if (-not (Test-Path $installedFfmpeg)) { throw "Installed bundled FFmpeg is missing: $installedFfmpeg" }
+          & $installedFfmpeg -hide_banner -version
+          if ($LASTEXITCODE -ne 0) { throw 'Installed bundled FFmpeg failed to start' }
 
           $app = Start-Process -FilePath $appExe -ArgumentList '--disable-gpu' -PassThru
           Start-Sleep -Seconds 8
