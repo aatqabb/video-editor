@@ -2,11 +2,13 @@ const { app, BrowserWindow, session } = require('electron')
 const path = require('node:path')
 
 const TIMEOUT_MS = 30000
+let failed = false
 
 function fail(error) {
+  if (failed) return
+  failed = true
   console.error(error?.stack || error)
-  process.exitCode = 1
-  app.quit()
+  app.exit(1)
 }
 
 app.commandLine.appendSwitch('disable-gpu')
@@ -124,7 +126,7 @@ app.whenReady().then(async () => {
     console.log(`Offline editing smoke passed: ${result.initialCount} seeded clips, duplicate/delete/undo verified, playhead click moved ${result.playheadClickPixels}px and held-drag moved ${result.playheadDragPixels}px, ${blockedRequests} network request(s) blocked.`)
     clearTimeout(timeout)
     window.destroy()
-    app.quit()
+    app.exit(0)
   } catch (error) {
     clearTimeout(timeout)
     fail(error)
