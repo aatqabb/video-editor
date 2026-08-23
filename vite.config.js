@@ -5,13 +5,15 @@ import { timelineRefactorPlugin } from './scripts/vite-timeline-refactor-plugin.
 import { playbackMediaPlugin } from './scripts/vite-playback-media-plugin.js'
 import { programPlaybackSyncPlugin } from './scripts/vite-program-playback-sync-plugin.js'
 import { unlimitedTimelineImportPlugin } from './scripts/vite-unlimited-timeline-import-plugin.js'
+import { durationUiSyncPlugin } from './scripts/vite-duration-ui-sync-plugin.js'
 import { smoothTimelineDragPlugin } from './scripts/vite-smooth-timeline-drag-plugin.js'
 import { premierePlayheadPlugin } from './scripts/vite-premiere-playhead-plugin.js'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // Order matters: the playhead transform rewrites the scrub block up to the
-  // legacy onDragStart handler. Run it before the smooth-drag transform so it
-  // cannot accidentally erase startClipPointerDrag from the generated App code.
-  plugins: [normalizeLineEndingsPlugin(), timelineRefactorPlugin(), playbackMediaPlugin(), programPlaybackSyncPlugin(), unlimitedTimelineImportPlugin(), premierePlayheadPlugin(), smoothTimelineDragPlugin(), react()],
+  // Transform order matters. Duration sync must patch the original Monitor
+  // signature before playback sync injects media helpers around that component.
+  // The playhead transform must also run before smooth drag so it cannot erase
+  // the final pointer-drag handler from generated App code.
+  plugins: [normalizeLineEndingsPlugin(), timelineRefactorPlugin(), playbackMediaPlugin(), unlimitedTimelineImportPlugin(), durationUiSyncPlugin(), programPlaybackSyncPlugin(), premierePlayheadPlugin(), smoothTimelineDragPlugin(), react()],
 })
