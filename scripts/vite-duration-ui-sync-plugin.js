@@ -14,11 +14,21 @@ export function durationUiSyncPlugin() {
         applied.add(name)
       }
 
-      replaceOnce(
-        'content-sized-ruler',
+      // The ruler should represent the real edited project duration, not an
+      // arbitrary fixed tail. Keep only a tiny 1-second editing buffer and
+      // round to whole seconds so imported media length is reflected exactly.
+      const oldDurationBlocks = [
         `  const timelineSeconds = useMemo(() => {\n    const contentEnd = clips.reduce((end, clip) => Math.max(end, (Number(clip.start) || 0) + (Number(clip.duration) || 0)), 0)\n    const required = Math.max(BASE_TIMELINE_SECONDS, contentEnd + 60, playhead + 60)\n    return Math.ceil(required / 30) * 30\n  }, [clips, playhead])`,
         `  const timelineSeconds = useMemo(() => {\n    const contentEnd = clips.reduce((end, clip) => Math.max(end, (Number(clip.start) || 0) + (Number(clip.duration) || 0)), 0)\n    const editTail = contentEnd > 0 ? Math.max(3, Math.min(10, contentEnd * .06)) : 0\n    const required = Math.max(BASE_TIMELINE_SECONDS, contentEnd + editTail, playhead + 3)\n    return Math.ceil(required / 10) * 10\n  }, [clips, playhead])`,
-      )
+      ]
+      const durationNeedle = oldDurationBlocks.find((needle) => next.includes(needle))
+      if (durationNeedle) {
+        next = next.replace(
+          durationNeedle,
+          `  const timelineSeconds = useMemo(() => {\n    const contentEnd = clips.reduce((end, clip) => Math.max(end, (Number(clip.start) || 0) + (Number(clip.duration) || 0)), 0)\n    const required = Math.max(10, contentEnd + 1, playhead + 1)\n    return Math.ceil(required)\n  }, [clips, playhead])`,
+        )
+        applied.add('content-sized-ruler')
+      }
 
       replaceOnce(
         'program-duration-prop',
@@ -42,7 +52,7 @@ export function durationUiSyncPlugin() {
       replaceOnce(
         'live-monitor-timecode',
         '<div className="monitor-info"><span>00:00:05:11</span><button onClick={() => notify(\'Fit menu\')}>Fit ▾</button><button onClick={() => notify(\'Full resolution\')}>Full ▾</button></div>',
-        '<div className="monitor-info"><span>{empty ? \'00:00:00:00\' : `${formatTime(playhead)} / ${formatTime(timelineDuration)}`}</span><button onClick={() => notify(\'Fit menu\')}>Fit ▾</button><button onClick={() => notify(\'Full resolution\')}>Full ▾</button></div>',
+        '<div className="monitor-info"><span>{empty ? \'00:00:00 / 00:00:00\' : `${formatTime(playhead)} / ${formatTime(timelineDuration)}`}</span><button onClick={() => notify(\'Fit menu\')}>Fit ▾</button><button onClick={() => notify(\'Full resolution\')}>Full ▾</button></div>',
       )
 
       const required = ['content-sized-ruler', 'program-duration-prop', 'monitor-duration-signature', 'live-monitor-timecode']
