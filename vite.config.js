@@ -11,8 +11,9 @@ import { premierePlayheadPlugin } from './scripts/vite-premiere-playhead-plugin.
 
 // https://vite.dev/config/
 export default defineConfig({
-  // Order matters: the playhead transform rewrites the scrub block up to the
-  // legacy onDragStart handler. Run it before the smooth-drag transform so it
-  // cannot accidentally erase startClipPointerDrag from the generated App code.
-  plugins: [normalizeLineEndingsPlugin(), timelineRefactorPlugin(), playbackMediaPlugin(), programPlaybackSyncPlugin(), unlimitedTimelineImportPlugin(), durationUiSyncPlugin(), premierePlayheadPlugin(), smoothTimelineDragPlugin(), react()],
+  // Transform order matters. Duration sync must patch the original Monitor
+  // signature before playback sync injects media helpers around that component.
+  // The playhead transform must also run before smooth drag so it cannot erase
+  // the final pointer-drag handler from generated App code.
+  plugins: [normalizeLineEndingsPlugin(), timelineRefactorPlugin(), playbackMediaPlugin(), unlimitedTimelineImportPlugin(), durationUiSyncPlugin(), programPlaybackSyncPlugin(), premierePlayheadPlugin(), smoothTimelineDragPlugin(), react()],
 })
