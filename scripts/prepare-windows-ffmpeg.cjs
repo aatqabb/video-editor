@@ -4,7 +4,7 @@ const path = require('node:path')
 const https = require('node:https')
 const { spawnSync } = require('node:child_process')
 
-const SOURCE_URL = process.env.VIDEO_EDITOR_FFMPEG_URL || 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl.zip'
+const SOURCE_URL = process.env.VIDEO_EDITOR_FFMPEG_URL || 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip'
 const destination = path.join(__dirname, '..', 'resources', 'ffmpeg')
 const ffmpegPath = path.join(destination, 'ffmpeg.exe')
 const ffprobePath = path.join(destination, 'ffprobe.exe')
@@ -78,8 +78,9 @@ async function main() {
     'FFmpeg binaries bundled for standalone Windows media import/export.',
     `Source: ${SOURCE_URL}`,
     'Build provider: BtbN/FFmpeg-Builds.',
-    'Variant: Windows x64 LGPL static build.',
+    'Variant: Windows x64 GPL static build (includes libx264 CPU H.264).',
     'FFmpeg licensing information: https://ffmpeg.org/legal.html',
+    'Distribution of this build must comply with FFmpeg/GPL requirements.',
     '',
   ].join('\r\n'))
 
