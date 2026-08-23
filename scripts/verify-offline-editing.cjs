@@ -5,8 +5,14 @@ const TIMEOUT_MS = 30000
 
 function fail(error) {
   console.error(error?.stack || error)
-  process.exitCode = 1
-  app.quit()
+  // Electron can normalize a graceful app.quit() to exit code 0 even after
+  // process.exitCode is set. Use app.exit(1) so Windows CI cannot go green
+  // when the offline editor smoke test actually failed.
+  try {
+    app.exit(1)
+  } catch {
+    process.exit(1)
+  }
 }
 
 app.commandLine.appendSwitch('disable-gpu')
