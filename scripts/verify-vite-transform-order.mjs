@@ -7,6 +7,7 @@ import { durationUiSyncPlugin } from './vite-duration-ui-sync-plugin.js'
 import { programPlaybackSyncPlugin } from './vite-program-playback-sync-plugin.js'
 import { premierePlayheadPlugin } from './vite-premiere-playhead-plugin.js'
 import { smoothTimelineDragPlugin } from './vite-smooth-timeline-drag-plugin.js'
+import { trackDeletePlugin } from './vite-track-delete-plugin.js'
 
 let code = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
 const id = '/repo/src/App.jsx'
@@ -19,6 +20,7 @@ for (const plugin of [
   programPlaybackSyncPlugin(),
   premierePlayheadPlugin(),
   smoothTimelineDragPlugin(),
+  trackDeletePlugin(),
 ]) {
   const result = plugin.transform?.(code, id)
   if (result?.code) code = result.code
@@ -37,6 +39,9 @@ const checks = [
   ['program monitor receives live timeline duration', code.includes('timelineDuration={timelineSeconds}')],
   ['program monitor renders current / total duration', code.includes('${formatTime(playhead)} / ${formatTime(timelineDuration)}')],
   ['hard-coded monitor timecode is removed', !code.includes('<span>00:00:05:11</span>')],
+  ['timeline receives setTracks for layer deletion', code.includes('setTracks={setTracks}')],
+  ['track delete handler removes track clips and selection', code.includes('const deleteTrack = (trackId) =>') && code.includes("clip.trackId !== trackId") && code.includes('removedIds.has(id)')],
+  ['each track exposes a delete layer control', code.includes('className="track-delete"') && code.includes('deleteTrack(track.id)')],
 ]
 
 let failed = false
@@ -45,4 +50,4 @@ for (const [name, ok] of checks) {
   if (!ok) failed = true
 }
 if (failed) process.exit(1)
-console.log('\nVite transform order preserves timeline drag, playhead, import, unlimited timeline and real media-duration UI behavior together.')
+console.log('\nVite transform order preserves timeline drag, playhead, imports, duration UI, and removable timeline layers together.')
