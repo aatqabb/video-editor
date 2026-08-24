@@ -1,12 +1,25 @@
 # Final Windows Acceptance Checklist
 
-Run this only after the latest `main` build passes `npm run verify:final`.
+Run this on the real Windows editing PC after pulling the latest `main`.
+
+## Fast path
+
+Set the live stock API keys first, then run the combined acceptance command:
+
+```powershell
+npm ci
+$env:PEXELS_API_KEY='your-key'
+$env:PIXABAY_API_KEY='your-key'
+npm run verify:windows:acceptance
+```
+
+This command runs the automated final regression, captures real microphone audio through Electron/MediaRecorder, performs live Pexels/Pixabay searches, attempts real NVENC/QSV/AMF hardware export, and writes `windows-acceptance-report.json`.
+
+If a provider is intentionally not part of the release, run the individual checks below instead of the combined command so the missing key is explicit rather than silently skipped.
 
 ## 1. Build and install
 
 ```powershell
-npm ci
-npm run verify:final
 npm run package:win
 ```
 
@@ -15,20 +28,23 @@ Install the generated `release/VideoEditor-Setup-*.exe` and launch **Video Edito
 ## 2. Visual + native picker QA
 
 - Confirm the Premiere-style layout loads without clipped or overlapping panels.
-- Resize the left panel, right panel, and timeline vertically/horizontally.
+- Resize the left panel, right panel, preview/program area, and timeline vertically/horizontally.
+- Open the keyboard-shortcuts popup, confirm it can be closed, and test the core shortcut keys.
 - Import multiple video/audio/image files using the native Windows picker.
 - Save a project with **Save As**, close the app, reopen the project, and confirm the timeline restores.
 - Choose an export destination and confirm the file appears at the selected path.
 
 ## 3. Microphone QA
 
-- Start voice-over recording and allow microphone permission when Windows asks.
-- Record 5–10 seconds, stop recording, and confirm the new audio clip appears on the timeline.
-- Play the clip and confirm the recorded voice is audible.
+The command below performs an actual two-second Windows microphone capture and requires a non-empty MediaRecorder blob:
+
+```powershell
+npm run verify:microphone:windows
+```
+
+Then do the app-level voice-over check: record 5–10 seconds, stop recording, confirm the new clip appears on the timeline, and play it back to confirm the voice is audible.
 
 ## 4. Live stock API QA
-
-Set one or both API keys in PowerShell, then run:
 
 ```powershell
 $env:PEXELS_API_KEY='your-key'
@@ -46,7 +62,7 @@ After `npm run package:win`, run:
 npm run verify:gpu:windows
 ```
 
-The script detects NVENC, Intel QSV, and AMD AMF encoders exposed by the bundled FFmpeg and attempts a real 3-second hardware H.264 export on the current machine. At least one detected encoder must produce a valid MP4.
+The script detects NVENC, Intel QSV, and AMD AMF encoders exposed by the bundled FFmpeg and attempts a real three-second hardware H.264 export on the current machine. At least one detected encoder must produce a valid MP4.
 
 Then export a short real project from the app using **GPU** mode and confirm playback. Repeat in **Auto** mode to confirm CPU fallback remains available if the GPU path fails.
 
@@ -57,5 +73,6 @@ Then export a short real project from the app using **GPU** mode and confirm pla
 - MP3 audio-only export works.
 - 1080p and 4K project/export settings are selectable.
 - Undo/redo, split, ripple trim, clip movement, text, transitions, SFX, save/recovery, and shortcuts work without a crash.
+- `windows-acceptance-report.json` has `"ok": true` when the combined acceptance command is used.
 
 Record any failing step with the exact error text and a screenshot. Do not mark the master tracker complete until all real-environment checks pass.
