@@ -17,10 +17,11 @@ export default function StockWorkspace({ notify, onImportStock }) {
 
   const runSearch = async () => {
     const clean = query.trim(); if (!clean) return notify('Type a stock search query first')
-    setLoading(true); setError('')
+    setLoading(true); setError(''); setPreview(null)
     try {
       const results = await searchStockVideos(clean, provider)
-      setItems(results); setPreview(results[0] || null); notify(`${results.length} stock items found`)
+      setItems(results)
+      notify(`${results.length} stock items found`)
     } catch (searchError) {
       const message = searchError?.message || 'Stock search failed'
       setError(message); setItems([]); setPreview(null); notify(message)
@@ -90,11 +91,19 @@ export default function StockWorkspace({ notify, onImportStock }) {
         </div>
       ))}</div>}
 
-      {preview && <div className="stock-preview-dock">
-        <div className="stock-preview-head"><strong>{preview.provider} preview</strong><button onClick={() => setPreview(null)}>✕</button></div>
-        {preview.mediaType === 'image' ? <img src={preview.fileUrl} alt={preview.title || ''} /> : <video key={preview.fileUrl} src={preview.fileUrl} poster={preview.thumbnail} controls autoPlay />}
-        <div className="stock-preview-meta"><span>{preview.author}</span><span>{preview.width}×{preview.height}</span><button onClick={() => importResult(preview)}>Import to Timeline</button></div>
-      </div>}
+      {preview && (
+        <div className="stock-preview-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setPreview(null)}>
+          <div className="stock-preview-modal" role="dialog" aria-modal="true" aria-label={`${preview.provider} stock preview`}>
+            <div className="stock-preview-head"><strong>{preview.provider} preview</strong><button onClick={() => setPreview(null)}>✕</button></div>
+            <div className="stock-preview-stage">
+              {preview.mediaType === 'image'
+                ? <img src={preview.fileUrl} alt={preview.title || ''} />
+                : <video key={preview.fileUrl} src={preview.fileUrl} poster={preview.thumbnail} controls autoPlay />}
+            </div>
+            <div className="stock-preview-meta"><span>{preview.author}</span><span>{preview.width}×{preview.height}</span><button onClick={() => importResult(preview)}>Import to Timeline</button></div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
