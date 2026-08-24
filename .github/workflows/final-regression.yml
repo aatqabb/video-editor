@@ -6,9 +6,13 @@ on:
     paths:
       - 'src/**'
       - 'electron/**'
+      - 'public/**'
       - 'scripts/**'
       - 'package.json'
       - 'vite.config.*'
+      - '.env.example'
+      - '.gitignore'
+      - 'FINAL_QA.md'
       - '.github/workflows/final-regression.yml'
   workflow_dispatch:
 
