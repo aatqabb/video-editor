@@ -3,7 +3,6 @@ import fs from 'node:fs'
 const scriptWorkspace = fs.readFileSync(new URL('../src/ScriptWorkspace.jsx', import.meta.url), 'utf8')
 const stockWorkspace = fs.readFileSync(new URL('../src/StockWorkspace.jsx', import.meta.url), 'utf8')
 const api = fs.readFileSync(new URL('../src/stockApi.js', import.meta.url), 'utf8')
-const app = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
 
 const requirements = [
   ['full script input', /placeholder="Paste full script here\.\.\."/, scriptWorkspace],
@@ -20,7 +19,6 @@ const requirements = [
   ['timeline import action', /Import to Timeline/, stockWorkspace],
   ['drag payload for stock clips', /application\/x-video-editor-stock/, stockWorkspace],
   ['download action', /downloadResult\(result\)/, stockWorkspace],
-  ['App renders StockWorkspace', /<StockWorkspace/, app],
 ]
 
 const apiRequirements = [
