@@ -17,7 +17,10 @@ const syntheticGpuInfo = {
     { active: false, vendorString: 'Advanced Micro Devices, Inc.', deviceString: 'Radeon Test', vendorId: 0x1002 },
   ],
 }
-const syntheticFfmpeg = { hardwareEncoders: ['h264_nvenc', 'h264_qsv', 'h264_amf'] }
+const syntheticFfmpeg = {
+  hardwareEncoders: ['h264_nvenc', 'h264_qsv', 'h264_amf'],
+  hardwareAccelerators: ['cuda', 'qsv', 'd3d11va', 'dxva2'],
+}
 const summary = summarizeGpuCapabilities(syntheticGpuInfo, syntheticFfmpeg)
 const unknownSummary = summarizeGpuCapabilities({ gpuDevice: [{ active: true, vendorString: 'Microsoft', deviceString: 'Basic Render Driver' }] }, syntheticFfmpeg)
 
@@ -37,8 +40,12 @@ const checks = [
   ['Synthetic NVIDIA adapter maps to NVENC', summary.adapters[0]?.vendor === 'nvidia' && summary.adapters[0]?.encoder === 'h264_nvenc' && summary.adapters[0]?.encoderAvailable],
   ['Synthetic Intel adapter maps to QSV', summary.adapters[1]?.vendor === 'intel' && summary.adapters[1]?.encoder === 'h264_qsv' && summary.adapters[1]?.encoderAvailable],
   ['Synthetic AMD adapter maps to AMF', summary.adapters[2]?.vendor === 'amd' && summary.adapters[2]?.encoder === 'h264_amf' && summary.adapters[2]?.encoderAvailable],
+  ['NVIDIA decode candidates include CUDA/D3D11VA', summary.adapters[0]?.decodeBackendCandidates.includes('cuda') && summary.adapters[0]?.decodeBackendCandidates.includes('d3d11va')],
+  ['Intel decode candidates include QSV/D3D11VA', summary.adapters[1]?.decodeBackendCandidates.includes('qsv') && summary.adapters[1]?.decodeBackendCandidates.includes('d3d11va')],
+  ['AMD decode candidates include D3D11VA', summary.adapters[2]?.decodeBackendCandidates.includes('d3d11va')],
+  ['Hardware decode availability summarized', summary.hasHardwareDecoder && summary.availableHardwareDecoders.includes('d3d11va')],
   ['Active adapter preserved', summary.activeAdapter?.device === 'GeForce RTX Test'],
-  ['Unknown adapter does not claim a hardware encoder', !unknownSummary.hasHardwareEncoder && unknownSummary.adapters[0]?.vendor === 'unknown'],
+  ['Unknown adapter does not claim hardware encode/decode', !unknownSummary.hasHardwareEncoder && !unknownSummary.hasHardwareDecoder && unknownSummary.adapters[0]?.vendor === 'unknown'],
 ]
 
 let failed = false
@@ -48,4 +55,4 @@ for (const [name, ok] of checks) {
 }
 
 if (failed) process.exit(1)
-console.log('\nGPU capability contract and vendor-to-encoder mapping are verified with deterministic fixtures. Real NVIDIA/Intel/AMD runtime support still requires verification on Windows hardware.')
+console.log('\nGPU capability contract now verifies deterministic vendor encode/decode mappings. Real NVIDIA/Intel/AMD runtime support still requires verification on Windows hardware.')
