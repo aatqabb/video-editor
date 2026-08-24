@@ -37,6 +37,12 @@ const checks = [
   ['Intel QSV detection', engine.includes('h264_qsv')],
   ['AMD AMF detection', engine.includes('h264_amf')],
   ['CPU H.264 fallback', engine.includes('libx264')],
+  ['FFmpeg hwaccel command is probed', engine.includes("['-hide_banner', '-hwaccels']")],
+  ['CUDA decode backend is probed', engine.includes("'cuda'"))],
+  ['QSV decode backend is probed', engine.includes("'qsv'"))],
+  ['D3D11VA decode backend is probed', engine.includes("'d3d11va'"))],
+  ['DXVA2 decode backend is probed', engine.includes("'dxva2'"))],
+  ['FFmpeg capability result exposes hardware accelerators', engine.includes('hardwareAccelerators')],
   ['Synthetic NVIDIA adapter maps to NVENC', summary.adapters[0]?.vendor === 'nvidia' && summary.adapters[0]?.encoder === 'h264_nvenc' && summary.adapters[0]?.encoderAvailable],
   ['Synthetic Intel adapter maps to QSV', summary.adapters[1]?.vendor === 'intel' && summary.adapters[1]?.encoder === 'h264_qsv' && summary.adapters[1]?.encoderAvailable],
   ['Synthetic AMD adapter maps to AMF', summary.adapters[2]?.vendor === 'amd' && summary.adapters[2]?.encoder === 'h264_amf' && summary.adapters[2]?.encoderAvailable],
@@ -55,4 +61,4 @@ for (const [name, ok] of checks) {
 }
 
 if (failed) process.exit(1)
-console.log('\nGPU capability contract now verifies deterministic vendor encode/decode mappings. Real NVIDIA/Intel/AMD runtime support still requires verification on Windows hardware.')
+console.log('\nGPU capability contract verifies FFmpeg hwaccel probing plus deterministic vendor encode/decode mappings. Real NVIDIA/Intel/AMD runtime support still requires verification on Windows hardware.')
