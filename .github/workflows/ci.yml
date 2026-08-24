@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  final-regression:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,15 +20,5 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Lint
-        run: npm run lint
-      - name: Verify GPU capability contract
-        run: npm run verify:gpu
-      - name: Verify responsiveness contract
-        run: npm run verify:responsiveness
-      - name: Verify timeline state helpers
-        run: npm run verify:timeline
-      - name: Verify final timeline transforms
-        run: npm run verify:timeline-transform
-      - name: Build
-        run: npm run build
+      - name: Run complete automated final regression gate
+        run: npm run verify:final
