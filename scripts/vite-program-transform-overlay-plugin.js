@@ -6,14 +6,33 @@ export function programTransformOverlayPlugin() {
       if (!id.includes('src/App.jsx')) return null
       let next = code
       next = next.replace("import './App.css'", "import './App.css'\nimport './ProgramTransformOverlay.css'")
-      next = next.replace(
+
+      const monitorCalls = [
+        '<Monitor playing={playing} setPlaying={setPlaying} notify={notify} timelineClips={clips} playhead={playhead} timelineDuration={timelineSeconds} projectSettings={projectSettings} />',
         '<Monitor playing={playing} setPlaying={setPlaying} notify={notify} timelineClips={clips} playhead={playhead} projectSettings={projectSettings} />',
-        '<Monitor playing={playing} setPlaying={setPlaying} notify={notify} timelineClips={clips} playhead={playhead} projectSettings={projectSettings} selectedClipIds={selectedClipIds} setSelectedClipIds={setSelectedClipIds} updateClipControls={updateClipControls} />',
-      )
-      next = next.replace(
+      ]
+      const monitorCall = monitorCalls.find((marker) => next.includes(marker))
+      if (!monitorCall) throw new Error('Program transform overlay could not find Program Monitor call')
+      if (!monitorCall.includes('selectedClipIds={selectedClipIds}')) {
+        const selectedMonitorCall = monitorCall.replace(
+          ' />',
+          ' selectedClipIds={selectedClipIds} setSelectedClipIds={setSelectedClipIds} updateClipControls={updateClipControls} />',
+        )
+        next = next.replace(monitorCall, selectedMonitorCall)
+      }
+
+      const monitorSignatures = [
+        'function Monitor({ playing, setPlaying, notify, empty = false, timelineClips = [], playhead = 0, timelineDuration = 0, projectSettings = { width: 1920, height: 1080 } }) {',
         'function Monitor({ playing, setPlaying, notify, empty = false, timelineClips = [], playhead = 0, projectSettings = { width: 1920, height: 1080 } }) {',
-        'function Monitor({ playing, setPlaying, notify, empty = false, timelineClips = [], playhead = 0, projectSettings = { width: 1920, height: 1080 }, selectedClipIds = [], setSelectedClipIds = () => {}, updateClipControls = () => {} }) {',
+      ]
+      const monitorSignature = monitorSignatures.find((marker) => next.includes(marker))
+      if (!monitorSignature) throw new Error('Program transform overlay could not find Monitor signature')
+      const selectionSignature = monitorSignature.replace(
+        ' }) {',
+        ', selectedClipIds = [], setSelectedClipIds = () => {}, updateClipControls = () => {} }) {',
       )
+      next = next.replace(monitorSignature, selectionSignature)
+
       next = next.replace(
         "  const activeVideo = activeClips.find((clip) => clip.type === 'video' && clip.kind !== 'text')\n",
         "  const activeVideo = activeClips.find((clip) => clip.type === 'video' && clip.kind !== 'text')\n  const activeVideoSelected = Boolean(activeVideo && selectedClipIds.includes(activeVideo.id))\n",
