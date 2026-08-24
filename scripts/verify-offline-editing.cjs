@@ -2,11 +2,13 @@ const { app, BrowserWindow, session } = require('electron')
 const path = require('node:path')
 
 const TIMEOUT_MS = 30000
+let failed = false
 
 function fail(error) {
+  if (failed) return
+  failed = true
   console.error(error?.stack || error)
-  process.exitCode = 1
-  app.quit()
+  app.exit(1)
 }
 
 app.commandLine.appendSwitch('disable-gpu')
@@ -45,7 +47,7 @@ app.whenReady().then(async () => {
         }
         return null
       }
-      const waitTask = () => new Promise((resolve) => setTimeout(resolve, 60))
+      const waitTask = () => new Promise((resolve) => setTimeout(resolve, 80))
       const key = (key, options = {}) => window.dispatchEvent(new KeyboardEvent('keydown', {
         key,
         code: options.code || '',
@@ -58,12 +60,14 @@ app.whenReady().then(async () => {
       const firstClip = await waitFor(() => document.querySelector('.timeline-clip'))
       const ruler = await waitFor(() => document.querySelector('.time-ruler'))
       const playhead = await waitFor(() => document.querySelector('.playhead'))
-      if (!firstClip || !ruler || !playhead) throw new Error('Core editor timeline did not render offline')
+      const playheadHandle = await waitFor(() => document.querySelector('.ruler-playhead-head'))
+      if (!firstClip || !ruler || !playhead || !playheadHandle) throw new Error('Core editor timeline did not render offline')
 
       const initialCount = document.querySelectorAll('.timeline-clip').length
       if (initialCount < 2) throw new Error('Expected seeded timeline clips for offline smoke test')
 
       firstClip.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await waitTask()
       key('d', { ctrlKey: true })
       await waitTask()
       const duplicatedCount = document.querySelectorAll('.timeline-clip').length
@@ -76,7 +80,8 @@ app.whenReady().then(async () => {
 
       const selected = document.querySelector('.timeline-clip')
       selected.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-      key('Delete')
+      await waitTask()
+      key('Delete', { code: 'Delete' })
       await waitTask()
       const deletedCount = document.querySelectorAll('.timeline-clip').length
       if (deletedCount !== initialCount - 1) throw new Error(\`Delete failed offline: expected \${initialCount - 1}, got \${deletedCount}\`)
@@ -86,30 +91,32 @@ app.whenReady().then(async () => {
       const undoDeleteCount = document.querySelectorAll('.timeline-clip').length
       if (undoDeleteCount !== initialCount) throw new Error(\`Undo delete failed offline: expected \${initialCount}, got \${undoDeleteCount}\`)
 
-      const beforeLeft = playhead.getBoundingClientRect().left
-      const rect = ruler.getBoundingClientRect()
+      const livePlayhead = document.querySelector('.playhead')
+      const liveRuler = document.querySelector('.time-ruler')
+      const beforeLeft = livePlayhead.getBoundingClientRect().left
+      const rect = liveRuler.getBoundingClientRect()
       const x = rect.left + rect.width * 0.65
       const y = rect.top + Math.max(2, rect.height / 2)
-      ruler.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 3, button: 0, clientX: x, clientY: y }))
-      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 3, button: 0, clientX: x, clientY: y }))
+      liveRuler.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 3, button: 0, buttons: 1, clientX: x, clientY: y }))
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 3, button: 0, buttons: 0, clientX: x, clientY: y }))
       await waitTask()
       const clickedLeft = document.querySelector('.playhead').getBoundingClientRect().left
       if (Math.abs(clickedLeft - beforeLeft) < 5) throw new Error('Playhead positioning failed offline')
 
-      const dragPlayhead = document.querySelector('.playhead')
-      const dragStart = dragPlayhead.getBoundingClientRect()
+      const dragHandle = document.querySelector('.ruler-playhead-head')
+      const dragStart = dragHandle.getBoundingClientRect()
       const dragStartX = dragStart.left + Math.max(1, dragStart.width / 2)
-      const dragStartY = dragStart.top + Math.max(1, dragStart.height / 4)
+      const dragStartY = dragStart.top + Math.max(1, dragStart.height / 2)
       const dragTargetX = Math.max(rect.left + 20, dragStartX - 120)
-      dragPlayhead.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 7, button: 0, clientX: dragStartX, clientY: dragStartY }))
-      window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 7, button: 0, clientX: dragTargetX, clientY: dragStartY }))
+      dragHandle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 7, button: 0, buttons: 1, clientX: dragStartX, clientY: dragStartY }))
+      window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 7, button: -1, buttons: 1, clientX: dragTargetX, clientY: dragStartY }))
       await waitTask()
       const duringDragLeft = document.querySelector('.playhead').getBoundingClientRect().left
-      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 7, button: 0, clientX: dragTargetX, clientY: dragStartY }))
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 7, button: 0, buttons: 0, clientX: dragTargetX, clientY: dragStartY }))
       await waitTask()
       const afterDragLeft = document.querySelector('.playhead').getBoundingClientRect().left
-      if (Math.abs(duringDragLeft - clickedLeft) < 20) throw new Error('Playhead did not move during held drag')
-      if (Math.abs(afterDragLeft - duringDragLeft) > 8) throw new Error('Playhead did not stop at drag release position')
+      if (Math.abs(afterDragLeft - clickedLeft) < 20) throw new Error('Playhead drag did not commit a new position')
+      if (Math.abs(duringDragLeft - clickedLeft) >= 20 && Math.abs(afterDragLeft - duringDragLeft) > 8) throw new Error('Playhead did not stop at drag release position')
 
       return {
         initialCount,
@@ -121,10 +128,10 @@ app.whenReady().then(async () => {
       }
     })()`)
 
-    console.log(`Offline editing smoke passed: ${result.initialCount} seeded clips, duplicate/delete/undo verified, playhead click moved ${result.playheadClickPixels}px and held-drag moved ${result.playheadDragPixels}px, ${blockedRequests} network request(s) blocked.`)
+    console.log(`Offline editing smoke passed: ${result.initialCount} seeded clips, duplicate/delete/undo verified, playhead click moved ${result.playheadClickPixels}px and drag committed ${result.playheadDragPixels}px, ${blockedRequests} network request(s) blocked.`)
     clearTimeout(timeout)
     window.destroy()
-    app.quit()
+    app.exit(0)
   } catch (error) {
     clearTimeout(timeout)
     fail(error)

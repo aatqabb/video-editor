@@ -13,7 +13,8 @@
     "verify:timeline": "node scripts/verify-timeline-state.mjs",
     "verify:timeline-transform": "node scripts/verify-vite-transform-order.mjs",
     "desktop": "npm run build && electron .",
-    "package:win": "npm run build && npx --yes electron-builder@26.0.12 --win nsis --x64"
+    "prepare:ffmpeg:win": "node scripts/prepare-windows-ffmpeg.cjs",
+    "package:win": "npm run prepare:ffmpeg:win && npm run build && npx --yes electron-builder@26.0.12 --win nsis --x64"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -38,6 +39,17 @@
       "dist/**/*",
       "electron/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/ffmpeg",
+        "to": "ffmpeg",
+        "filter": [
+          "ffmpeg.exe",
+          "ffprobe.exe",
+          "README.txt"
+        ]
+      }
     ],
     "asar": true,
     "win": {
