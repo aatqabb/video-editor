@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { getStockApiKeys, getStockProviderStatus, saveStockApiKeys, searchStockVideos } from './stockApi'
+import { getStockApiKeys, getStockProviderStatus, registerStockDownload, saveStockApiKeys, searchStockVideos } from './stockApi'
 import './ScriptWorkspace.css'
 
 export default function StockWorkspace({ notify, onImportStock }) {
@@ -13,6 +13,7 @@ export default function StockWorkspace({ notify, onImportStock }) {
   const [apiKeys, setApiKeys] = useState(() => getStockApiKeys())
   const [statusVersion, setStatusVersion] = useState(0)
   const providerStatus = useMemo(() => getStockProviderStatus(), [statusVersion])
+  const providerCounts = useMemo(() => items.reduce((counts, item) => ({ ...counts, [item.provider]: (counts[item.provider] || 0) + 1 }), {}), [items])
 
   const runSearch = async () => {
     const clean = query.trim(); if (!clean) return notify('Type a stock search query first')
@@ -30,8 +31,14 @@ export default function StockWorkspace({ notify, onImportStock }) {
     saveStockApiKeys(apiKeys); setStatusVersion((value) => value + 1); setShowKeys(false); notify('Stock API keys saved on this browser')
   }
 
-  const downloadResult = (result) => {
-    const anchor = document.createElement('a'); anchor.href = result.fileUrl; anchor.target = '_blank'; anchor.rel = 'noreferrer'
+  const importResult = async (result) => {
+    await registerStockDownload(result)
+    onImportStock(result)
+  }
+
+  const downloadResult = async (result) => {
+    await registerStockDownload(result)
+    const anchor = document.createElement('a'); anchor.href = result.downloadUrl || result.fileUrl; anchor.target = '_blank'; anchor.rel = 'noreferrer'
     anchor.download = `${result.provider}-${result.sourceId}.${result.mediaType === 'image' ? 'jpg' : 'mp4'}`
     document.body.appendChild(anchor); anchor.click(); anchor.remove()
   }
@@ -68,6 +75,7 @@ export default function StockWorkspace({ notify, onImportStock }) {
         <button className="search-stock-btn" onClick={runSearch} disabled={loading}>{loading ? 'Searching…' : 'Search'}</button>
       </div>
       {error && <div className="stock-error">{error}</div>}
+      {!!items.length && <div className="api-status-row">{Object.entries(providerCounts).map(([name, count]) => <span className="api-ready" key={name}>{name}: {count}</span>)}</div>}
 
       {!!items.length && <div className="stock-results-strip">{items.map((result) => (
         <div className="stock-result-card" key={result.id} draggable onDragStart={(event) => {
@@ -77,14 +85,15 @@ export default function StockWorkspace({ notify, onImportStock }) {
             {result.thumbnail ? <img src={result.thumbnail} alt="" /> : <span className="stock-thumb-placeholder">▶</span>}
             <span className="stock-provider">{result.provider}</span><span className="stock-duration">{result.mediaType === 'image' ? 'PHOTO' : `${Math.round(result.duration)}s`}</span>
           </button>
-          <div className="stock-card-actions"><button onClick={() => setPreview(result)}>Preview</button><button onClick={() => onImportStock(result)}>Import</button><button onClick={() => downloadResult(result)}>Download</button></div>
+          <div className="stock-card-actions"><button onClick={() => setPreview(result)}>Preview</button><button onClick={() => importResult(result)}>Import</button><button onClick={() => downloadResult(result)}>Download</button></div>
+          {result.pageUrl && <a className="stock-source-link" href={result.pageUrl} target="_blank" rel="noreferrer">{result.author} · {result.provider}</a>}
         </div>
       ))}</div>}
 
       {preview && <div className="stock-preview-dock">
         <div className="stock-preview-head"><strong>{preview.provider} preview</strong><button onClick={() => setPreview(null)}>✕</button></div>
         {preview.mediaType === 'image' ? <img src={preview.fileUrl} alt={preview.title || ''} /> : <video key={preview.fileUrl} src={preview.fileUrl} poster={preview.thumbnail} controls autoPlay />}
-        <div className="stock-preview-meta"><span>{preview.author}</span><span>{preview.width}×{preview.height}</span><button onClick={() => onImportStock(preview)}>Import to Timeline</button></div>
+        <div className="stock-preview-meta"><span>{preview.author}</span><span>{preview.width}×{preview.height}</span><button onClick={() => importResult(preview)}>Import to Timeline</button></div>
       </div>}
     </div>
   )
