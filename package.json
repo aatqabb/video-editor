@@ -22,6 +22,7 @@
     "verify:stock": "node scripts/verify-stock-workflow-contract.mjs",
     "verify:stock:live": "node scripts/verify-live-stock.mjs",
     "verify:windows-picker": "node scripts/verify-windows-native-picker.mjs",
+    "verify:windows:preflight": "node scripts/verify-windows-preflight.cjs",
     "verify:windows:acceptance": "node scripts/verify-windows-acceptance.cjs",
     "verify:final": "node scripts/verify-final-regression.mjs",
     "desktop": "npm run build && electron .",
@@ -44,44 +45,11 @@
   "build": {
     "appId": "com.aatqabb.videoeditor",
     "productName": "Video Editor",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "electron/**/*",
-      "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "resources/ffmpeg",
-        "to": "ffmpeg",
-        "filter": [
-          "ffmpeg.exe",
-          "ffprobe.exe",
-          "README.txt"
-        ]
-      }
-    ],
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "electron/**/*", "package.json"],
+    "extraResources": [{ "from": "resources/ffmpeg", "to": "ffmpeg", "filter": ["ffmpeg.exe", "ffprobe.exe", "README.txt"] }],
     "asar": true,
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "artifactName": "VideoEditor-Setup-${version}.${ext}"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Video Editor"
-    }
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "artifactName": "VideoEditor-Setup-${version}.${ext}" },
+    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Video Editor" }
   }
 }
