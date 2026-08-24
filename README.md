@@ -55,7 +55,18 @@ npm run verify:stock
 npm run verify:windows-picker
 ```
 
-The final gate runs lint, a production build, generated WAV validation, and the editor contract checks. Hardware and live-service behavior still requires hands-on QA where automation cannot prove the environment itself, especially real GPU vendor encode/decode/export paths, Windows microphone permission/recording, live Pexels/Pixabay API keys, and visual/native-picker behavior.
+Real-environment QA helpers are available for the final Windows acceptance pass:
+
+```bash
+npm run verify:gpu:windows
+npm run verify:stock:live
+```
+
+`verify:gpu:windows` performs a real hardware H.264 export attempt with NVENC, Intel QSV, and AMD AMF encoders exposed by the bundled FFmpeg. `verify:stock:live` uses `PEXELS_API_KEY` and/or `PIXABAY_API_KEY` environment variables to validate real live video search responses.
+
+The final gate runs lint, a production build, generated WAV validation, editor contract checks, and verifies that the hands-on QA tooling is wired. Hardware and live-service behavior still requires the target Windows environment itself, especially microphone permission/recording and visual/native-picker behavior.
+
+See `FINAL_QA.md` for the final Windows acceptance checklist.
 
 ## Windows packaging
 
