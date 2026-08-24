@@ -36,4 +36,4 @@ for (const [name, command, args] of checks) {
 if (failed) process.exit(1)
 
 console.log('\nPASS: automated final regression gate completed.')
-console.log('Hardware/live-service/content checks remain separate: real GPU vendor export, microphone permission, live Pexels/Pixabay keys, and packaged final SFX audio assets.')
+console.log('Hands-on checks remain separate: real Windows GPU encode/decode/export, microphone permission/recording, live Pexels/Pixabay API keys, and visual/native-picker QA.')
