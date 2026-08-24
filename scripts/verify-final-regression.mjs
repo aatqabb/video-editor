@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 const checks = [
   ['Lint', 'npm', ['run', 'lint']],
   ['Production build', 'npm', ['run', 'build']],
+  ['Generated SFX assets', 'node', ['scripts/verify-generated-sfx-assets.mjs']],
   ['Timeline state', 'node', ['scripts/verify-timeline-state.mjs']],
   ['Vite transform order', 'node', ['scripts/verify-vite-transform-order.mjs']],
   ['GPU contract', 'node', ['scripts/verify-gpu-contract.mjs']],
