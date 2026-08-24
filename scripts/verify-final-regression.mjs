@@ -8,6 +8,7 @@ const checks = [
   ['GPU contract', 'node', ['scripts/verify-gpu-contract.mjs']],
   ['Responsiveness contract', 'node', ['scripts/verify-responsiveness-contract.mjs']],
   ['Export contract', 'node', ['scripts/verify-export-contract.mjs']],
+  ['Voice-over recording contract', 'node', ['scripts/verify-voiceover-contract.mjs']],
   ['Windows native picker contract', 'node', ['scripts/verify-windows-native-picker.mjs']],
 ]
 
