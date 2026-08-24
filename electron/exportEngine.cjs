@@ -27,26 +27,35 @@ function resolveFfmpeg() {
   return ffmpegCandidates().find(canRun) || null
 }
 
-function probeEncoders(binary) {
+function probeList(binary, args, candidates) {
   if (!binary) return []
   try {
-    const result = spawnSync(binary, ['-hide_banner', '-encoders'], { encoding: 'utf8', windowsHide: true, timeout: 10000 })
-    const text = `${result.stdout || ''}\n${result.stderr || ''}`
-    return ['h264_nvenc', 'h264_qsv', 'h264_amf', 'libx264', 'libmp3lame', 'aac']
-      .filter((encoder) => text.includes(encoder))
+    const result = spawnSync(binary, args, { encoding: 'utf8', windowsHide: true, timeout: 10000 })
+    const text = `${result.stdout || ''}\n${result.stderr || ''}`.toLowerCase()
+    return candidates.filter((candidate) => text.includes(candidate.toLowerCase()))
   } catch {
     return []
   }
 }
 
+function probeEncoders(binary) {
+  return probeList(binary, ['-hide_banner', '-encoders'], ['h264_nvenc', 'h264_qsv', 'h264_amf', 'libx264', 'libmp3lame', 'aac'])
+}
+
+function probeHardwareAccelerators(binary) {
+  return probeList(binary, ['-hide_banner', '-hwaccels'], ['cuda', 'qsv', 'd3d11va', 'dxva2'])
+}
+
 function probeFfmpeg() {
   const binary = resolveFfmpeg()
   const encoders = probeEncoders(binary)
+  const hardwareAccelerators = probeHardwareAccelerators(binary)
   return {
     available: Boolean(binary),
     binary,
     encoders,
     hardwareEncoders: encoders.filter((encoder) => ['h264_nvenc', 'h264_qsv', 'h264_amf'].includes(encoder)),
+    hardwareAccelerators,
   }
 }
 
