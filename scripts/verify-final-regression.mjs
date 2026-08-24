@@ -10,6 +10,7 @@ const checks = [
   ['Export contract', 'node', ['scripts/verify-export-contract.mjs']],
   ['Voice-over recording contract', 'node', ['scripts/verify-voiceover-contract.mjs']],
   ['SFX workflow contract', 'node', ['scripts/verify-sfx-contract.mjs']],
+  ['Stock workflow contract', 'node', ['scripts/verify-stock-workflow-contract.mjs']],
   ['Windows native picker contract', 'node', ['scripts/verify-windows-native-picker.mjs']],
 ]
 
