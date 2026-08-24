@@ -10,6 +10,7 @@ A desktop-oriented React + Vite video editor with an Electron shell, multi-track
 - Voice-over recording through `getUserMedia` + `MediaRecorder`, with recorded clips inserted into the timeline.
 - Project save/autosave/recovery and recent-project handling.
 - Text, effects, transitions, stock/SFX workspaces, and export UI.
+- Built-in SFX are generated as packaged WAV assets during the production build and use Electron-safe relative URLs for preview/timeline insertion.
 - Electron packaging for Windows with bundled FFmpeg resources.
 
 ## Development
@@ -48,10 +49,13 @@ npm run verify:gpu
 npm run verify:responsiveness
 npm run verify:export
 npm run verify:voiceover
+npm run verify:sfx
+npm run verify:sfx-assets
+npm run verify:stock
 npm run verify:windows-picker
 ```
 
-The final gate also runs lint and a production build. Hardware and live-service behavior still requires hands-on QA where automation cannot prove the environment itself, especially real GPU vendor export paths, Windows microphone permission/recording, and live stock-media API keys.
+The final gate runs lint, a production build, generated WAV validation, and the editor contract checks. Hardware and live-service behavior still requires hands-on QA where automation cannot prove the environment itself, especially real GPU vendor encode/decode/export paths, Windows microphone permission/recording, live Pexels/Pixabay API keys, and visual/native-picker behavior.
 
 ## Windows packaging
 
