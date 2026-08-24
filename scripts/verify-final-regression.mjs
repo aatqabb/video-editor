@@ -14,6 +14,7 @@ const checks = [
   ['Stock workflow contract', 'node', ['scripts/verify-stock-workflow-contract.mjs']],
   ['Windows native picker contract', 'node', ['scripts/verify-windows-native-picker.mjs']],
   ['Hands-on QA tooling contract', 'node', ['scripts/verify-hands-on-qa-contract.mjs']],
+  ['Release readiness contract', 'node', ['scripts/verify-release-readiness.mjs']],
 ]
 
 let failed = false
