@@ -24,7 +24,7 @@ export function EffectsWorkspace({ onApply,onReset,notify }) { const [intensity,
 
 const BUILT_IN_SFX = [
   {id:'whoosh',name:'Whoosh',duration:.7},{id:'whoosh-fast',name:'Whoosh Fast',duration:.4},{id:'impact',name:'Impact Hit',duration:.5},{id:'cinematic-hit',name:'Cinematic Hit',duration:.8},{id:'pop',name:'Pop',duration:.25},{id:'rise',name:'Rise',duration:1.2},{id:'glitch',name:'Glitch',duration:.55},{id:'bass',name:'Bass Drop',duration:.9},{id:'swipe',name:'Swipe',duration:.45},{id:'boom',name:'Boom',duration:1},{id:'typing',name:'Typing',duration:.8},{id:'notification',name:'Notification',duration:.35},{id:'click',name:'Camera Click',duration:.2},{id:'transition',name:'Transition Sweep',duration:.65},{id:'reverse',name:'Reverse Whoosh',duration:.8},{id:'riser-short',name:'Short Riser',duration:.7}
-].map((sfx)=>({...sfx,url:`/sfx/${sfx.id}.wav`,packaged:true}))
+].map((sfx)=>({...sfx,url:`${import.meta.env.BASE_URL}sfx/${sfx.id}.wav`,packaged:true}))
 
 export function SfxWorkspace({ onAddSfx, notify }) {
   const [search,setSearch]=useState(''); const fileRef=useRef(null); const previewRef=useRef(null); const filtered=useMemo(()=>BUILT_IN_SFX.filter((sfx)=>sfx.name.toLowerCase().includes(search.toLowerCase())),[search])
