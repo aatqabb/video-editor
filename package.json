@@ -12,6 +12,7 @@
     "verify:responsiveness": "node scripts/verify-responsiveness-contract.mjs",
     "verify:timeline": "node scripts/verify-timeline-state.mjs",
     "verify:timeline-transform": "node scripts/verify-vite-transform-order.mjs",
+    "verify:final": "node scripts/verify-final-regression.mjs",
     "desktop": "npm run build && electron .",
     "prepare:ffmpeg:win": "node scripts/prepare-windows-ffmpeg.cjs",
     "package:win": "npm run prepare:ffmpeg:win && npm run build && npx --yes electron-builder@26.0.12 --win nsis --x64"
