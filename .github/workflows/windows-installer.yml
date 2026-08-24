@@ -90,9 +90,13 @@ jobs:
             if ($uninstall.ExitCode -ne 0) { throw "Silent uninstaller exited with code $($uninstall.ExitCode)" }
           }
 
+      # PRs still build and verify the installer, but do not retain a large artifact.
+      # A downloadable Setup.exe is kept only for a manual workflow run, and only for 1 day.
       - name: Upload Setup.exe
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: VideoEditor-Windows-Setup
           path: release/VideoEditor-Setup-*.exe
           if-no-files-found: error
+          retention-days: 1
