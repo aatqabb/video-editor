@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "generate:sfx": "node scripts/generate-sfx-assets.mjs",
+    "build": "npm run generate:sfx && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
     "verify:gpu": "node scripts/verify-gpu-contract.mjs",
