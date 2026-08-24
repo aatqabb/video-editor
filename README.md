@@ -40,6 +40,12 @@ Run the full automated regression gate before shipping:
 npm run verify:final
 ```
 
+Run the release-readiness contract separately when checking installer metadata, FFmpeg bundling, QA documentation, environment-key hygiene, and Windows workflow wiring:
+
+```bash
+npm run verify:release
+```
+
 Individual contract checks are also available:
 
 ```bash
@@ -55,16 +61,26 @@ npm run verify:stock
 npm run verify:windows-picker
 ```
 
-Real-environment QA helpers are available for the final Windows acceptance pass:
+For the final real Windows pass, run preflight first and then the combined acceptance runner:
+
+```powershell
+npm run verify:windows:preflight
+$env:PEXELS_API_KEY='your-key'
+$env:PIXABAY_API_KEY='your-key'
+npm run verify:windows:acceptance
+```
+
+The acceptance runner attempts all real-environment checks instead of stopping at the first failure, then writes `windows-acceptance-report.json`. Individual real-environment helpers remain available:
 
 ```bash
+npm run verify:microphone:windows
 npm run verify:gpu:windows
 npm run verify:stock:live
 ```
 
 `verify:gpu:windows` performs a real hardware H.264 export attempt with NVENC, Intel QSV, and AMD AMF encoders exposed by the bundled FFmpeg. `verify:stock:live` uses `PEXELS_API_KEY` and/or `PIXABAY_API_KEY` environment variables to validate real live video search responses.
 
-The final gate runs lint, a production build, generated WAV validation, editor contract checks, and verifies that the hands-on QA tooling is wired. Hardware and live-service behavior still requires the target Windows environment itself, especially microphone permission/recording and visual/native-picker behavior.
+The final automated gate runs lint, a production build, generated WAV validation, editor contracts, hands-on QA tooling checks, and release-readiness checks. Hardware, microphone permission, live-service behavior, and visual/native-picker behavior still require the target Windows environment itself.
 
 See `FINAL_QA.md` for the final Windows acceptance checklist.
 
