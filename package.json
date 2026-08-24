@@ -16,6 +16,7 @@
     "verify:export": "node scripts/verify-export-contract.mjs",
     "verify:voiceover": "node scripts/verify-voiceover-contract.mjs",
     "verify:sfx": "node scripts/verify-sfx-contract.mjs",
+    "verify:sfx-assets": "node scripts/verify-generated-sfx-assets.mjs",
     "verify:stock": "node scripts/verify-stock-workflow-contract.mjs",
     "verify:windows-picker": "node scripts/verify-windows-native-picker.mjs",
     "verify:final": "node scripts/verify-final-regression.mjs",
