@@ -9,6 +9,7 @@ const checks = [
   ['Responsiveness contract', 'node', ['scripts/verify-responsiveness-contract.mjs']],
   ['Export contract', 'node', ['scripts/verify-export-contract.mjs']],
   ['Voice-over recording contract', 'node', ['scripts/verify-voiceover-contract.mjs']],
+  ['SFX workflow contract', 'node', ['scripts/verify-sfx-contract.mjs']],
   ['Windows native picker contract', 'node', ['scripts/verify-windows-native-picker.mjs']],
 ]
 
@@ -34,4 +35,4 @@ for (const [name, command, args] of checks) {
 if (failed) process.exit(1)
 
 console.log('\nPASS: automated final regression gate completed.')
-console.log('Hardware/live-service checks remain separate: real GPU vendor export, microphone permission, and live Pexels/Pixabay keys.')
+console.log('Hardware/live-service/content checks remain separate: real GPU vendor export, microphone permission, live Pexels/Pixabay keys, and packaged final SFX audio assets.')
