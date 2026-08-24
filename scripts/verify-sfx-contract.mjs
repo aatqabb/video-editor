@@ -2,12 +2,14 @@ import fs from 'node:fs'
 
 const source = fs.readFileSync(new URL('../src/CreativePanels.jsx', import.meta.url), 'utf8')
 const generator = fs.readFileSync(new URL('./generate-sfx-assets.mjs', import.meta.url), 'utf8')
+const vite = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf8')
 
 const requirements = [
   ['dedicated SFX library', /SFX LIBRARY/],
   ['SFX search', /placeholder="Search SFX"/],
   ['SFX preview control', /className="sfx-play"/],
-  ['packaged WAV URL mapping', /url:`\/sfx\/\$\{sfx\.id\}\.wav`/],
+  ['packaged WAV uses Vite base URL', /import\.meta\.env\.BASE_URL.*sfx\/.*\.wav/],
+  ['Electron build uses relative Vite base', /base:\s*['"]\.\/['"]/],
   ['packaged asset marker', /packaged:true/],
   ['real audio preview', /new Audio\(sfx\.url\)/],
   ['preview playback', /audio\.play\(\)/],
@@ -20,11 +22,11 @@ const requirements = [
 
 let failed = false
 for (const [name, pattern] of requirements) {
-  const target = name.startsWith('WAV generator') ? generator : source
+  const target = name.startsWith('WAV generator') ? generator : name.startsWith('Electron build') ? vite : source
   const ok = pattern.test(target)
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`)
   if (!ok) failed = true
 }
 
 if (failed) process.exit(1)
-console.log('PASS SFX workflow contract verified with packaged WAV preview, drag payload, timeline insertion, and custom import.')
+console.log('PASS SFX workflow contract verified with Electron-safe packaged WAV preview, drag payload, timeline insertion, and custom import.')
