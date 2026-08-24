@@ -4,18 +4,24 @@ Run this on the real Windows editing PC after pulling the latest `main`.
 
 ## Fast path
 
-Set the live stock API keys first, then run the combined acceptance command:
+First check what is ready and what still needs setup:
 
 ```powershell
 npm ci
+npm run verify:windows:preflight
+```
+
+This writes `windows-preflight-report.json` and reports Windows/Node/npm readiness, prepared or bundled FFmpeg, and whether the Pexels/Pixabay API keys are present.
+
+Then set the live stock API keys and run the combined acceptance command:
+
+```powershell
 $env:PEXELS_API_KEY='your-key'
 $env:PIXABAY_API_KEY='your-key'
 npm run verify:windows:acceptance
 ```
 
-This command runs the automated final regression, captures real microphone audio through Electron/MediaRecorder, performs live Pexels/Pixabay searches, attempts real NVENC/QSV/AMF hardware export, and writes `windows-acceptance-report.json`.
-
-If a provider is intentionally not part of the release, run the individual checks below instead of the combined command so the missing key is explicit rather than silently skipped.
+The acceptance runner attempts every check even if one fails, so `windows-acceptance-report.json` contains the complete blocker list from one run. It covers preflight, automated final regression, real microphone capture, live Pexels/Pixabay searches, and real NVENC/QSV/AMF hardware export.
 
 ## 1. Build and install
 
