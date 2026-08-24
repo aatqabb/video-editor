@@ -1,7 +1,9 @@
 import fs from 'node:fs'
 
 const source = fs.readFileSync(new URL('../src/ScriptWorkspace.jsx', import.meta.url), 'utf8')
+const stock = fs.readFileSync(new URL('../src/StockWorkspace.jsx', import.meta.url), 'utf8')
 const api = fs.readFileSync(new URL('../src/stockApi.js', import.meta.url), 'utf8')
+const transform = fs.readFileSync(new URL('./vite-stock-workspace-plugin.js', import.meta.url), 'utf8')
 
 const requirements = [
   ['full script input', /placeholder="Paste full script here\.\.\."/],
@@ -17,6 +19,16 @@ const requirements = [
   ['download action', /downloadResult\(result\)/],
 ]
 
+const standaloneRequirements = [
+  ['standalone Stock tab uses real search API', /searchStockVideos\(clean, provider\)/],
+  ['standalone Stock tab has editable search box', /placeholder="Search Pexels \+ Pixabay"/],
+  ['standalone Stock tab has API key UI', /Stock API keys saved on this browser/],
+  ['standalone Stock tab previews results', /stock-preview-dock/],
+  ['standalone Stock tab imports to timeline', /onImportStock\(result\)/],
+  ['standalone Stock tab supports drag payload', /application\/x-video-editor-stock/],
+  ['Vite transform replaces placeholder Stock tab', /StockWorkspace/],
+]
+
 const apiRequirements = [
   ['Pexels API endpoint', /pexels/i],
   ['Pixabay API endpoint', /pixabay/i],
@@ -29,6 +41,12 @@ for (const [name, pattern] of requirements) {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`)
   if (!ok) failed = true
 }
+for (const [name, pattern] of standaloneRequirements) {
+  const target = name.startsWith('Vite transform') ? transform : stock
+  const ok = pattern.test(target)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`)
+  if (!ok) failed = true
+}
 for (const [name, pattern] of apiRequirements) {
   const ok = pattern.test(api)
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`)
@@ -36,4 +54,4 @@ for (const [name, pattern] of apiRequirements) {
 }
 
 if (failed) process.exit(1)
-console.log('PASS Script → Pexels/Pixabay workflow contract verified. Real API-key searches remain a hands-on live-service gate.')
+console.log('PASS Script + standalone Stock → Pexels/Pixabay workflow contract verified. Real API-key searches remain a hands-on live-service gate.')
