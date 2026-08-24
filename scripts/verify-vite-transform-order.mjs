@@ -34,6 +34,9 @@ const checks = [
   ['smooth clip pointer handler survives playhead transform', code.includes('const startClipPointerDrag = (event, clip) =>')],
   ['timeline clips use pointer drag wiring', code.includes('onPointerDown={(event) => startClipPointerDrag(event, clip)}')],
   ['native clip drag is disabled', code.includes('draggable={false}')],
+  ['playhead uses window-level pointer drag loop', code.includes("window.addEventListener('pointermove', onMove, true)") && code.includes("window.addEventListener('pointerup', onUp, true)")],
+  ['playhead drag does not depend on pointer capture', !code.includes('setPointerCapture?.(pointerId)') && !code.includes("addEventListener('lostpointercapture'" )],
+  ['playhead release commits final pointer position', code.includes('setPlayhead(pointerToTime({ clientX: latestX }))')],
   ['dynamic timeline prop is wired', code.includes('timelineSeconds={timelineSeconds}')],
   ['timeline width uses dynamic duration', code.includes('const laneWidth = timelineSeconds * pixelsPerSecond')],
   ['media import creates fresh layer at playhead', code.includes('added on a new ${timelineType} layer at playhead')],
@@ -58,4 +61,4 @@ for (const [name, ok] of checks) {
   if (!ok) failed = true
 }
 if (failed) process.exit(1)
-console.log('\nVite transform order preserves timeline drag, playhead, imports, duration UI, removable layers, and Program Monitor live resize together.')
+console.log('\nVite transform order preserves timeline drag, robust window-level playhead dragging, imports, duration UI, removable layers, and Program Monitor live resize together.')
