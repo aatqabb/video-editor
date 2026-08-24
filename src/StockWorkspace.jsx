@@ -93,7 +93,7 @@ export default function StockWorkspace({ notify, onImportStock }) {
 
       {preview && (
         <div className="stock-preview-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setPreview(null)}>
-          <div className="stock-preview-modal" role="dialog" aria-modal="true" aria-label={`${preview.provider} stock preview`}>
+          <div className="stock-preview-modal stock-preview-dock" role="dialog" aria-modal="true" aria-label={`${preview.provider} stock preview`}>
             <div className="stock-preview-head"><strong>{preview.provider} preview</strong><button onClick={() => setPreview(null)}>✕</button></div>
             <div className="stock-preview-stage">
               {preview.mediaType === 'image'
