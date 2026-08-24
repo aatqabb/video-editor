@@ -8,6 +8,7 @@ const checks = [
   ['Vite transform order', 'node', ['scripts/verify-vite-transform-order.mjs']],
   ['GPU contract', 'node', ['scripts/verify-gpu-contract.mjs']],
   ['Responsiveness contract', 'node', ['scripts/verify-responsiveness-contract.mjs']],
+  ['Program monitor live resize contract', 'node', ['scripts/verify-program-transform-contract.mjs']],
   ['Export contract', 'node', ['scripts/verify-export-contract.mjs']],
   ['Voice-over recording contract', 'node', ['scripts/verify-voiceover-contract.mjs']],
   ['SFX workflow contract', 'node', ['scripts/verify-sfx-contract.mjs']],
@@ -39,4 +40,4 @@ for (const [name, command, args] of checks) {
 if (failed) process.exit(1)
 
 console.log('\nPASS: automated final regression gate completed.')
-console.log('Hands-on checks remain separate: real Windows GPU encode/decode/export, microphone permission/recording, live Pexels/Pixabay API keys, and visual/native-picker QA.')
+console.log('Hands-on checks remain separate: real Windows GPU encode/decode/export, microphone permission/recording, live stock API keys, and visual/native-picker QA.')
