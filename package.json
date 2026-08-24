@@ -24,6 +24,7 @@
     "verify:windows-picker": "node scripts/verify-windows-native-picker.mjs",
     "verify:windows:preflight": "node scripts/verify-windows-preflight.cjs",
     "verify:windows:acceptance": "node scripts/verify-windows-acceptance.cjs",
+    "verify:release": "node scripts/verify-release-readiness.mjs",
     "verify:final": "node scripts/verify-final-regression.mjs",
     "desktop": "npm run build && electron .",
     "prepare:ffmpeg:win": "node scripts/prepare-windows-ffmpeg.cjs",
