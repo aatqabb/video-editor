@@ -62,12 +62,12 @@ function normalizePixabayVideo(video, query) {
 function normalizeCoverrVideo(video, query) {
   const fileUrl = video.urls?.mp4 || video.urls?.mp4_download || video.urls?.mp4_preview
   if (!fileUrl) return null
-  return { id: `coverr-${video.id}`, provider: 'Coverr', sourceId: String(video.id), title: video.title || query, thumbnail: video.thumbnail || video.poster || '', fileUrl, pageUrl: video.url || `https://coverr.co/videos/${video.id}`, duration: Number(video.duration) || 5, author: video.author?.name || video.contributor?.name || 'Coverr creator', width: video.max_width, height: video.max_height, mediaType: 'video' }
+  return { id: `coverr-${video.id}`, provider: 'Coverr', sourceId: String(video.id), title: video.title || query, thumbnail: video.thumbnail || video.poster || '', fileUrl, downloadUrl: video.urls?.mp4_download || fileUrl, pageUrl: video.url || `https://coverr.co/videos/${video.id}`, duration: Number(video.duration) || 5, author: video.author?.name || video.contributor?.name || 'Coverr creator', width: video.max_width, height: video.max_height, mediaType: 'video' }
 }
 function normalizeUnsplashPhoto(photo, query) {
   const fileUrl = photo.urls?.regular || photo.urls?.full
   if (!fileUrl) return null
-  return { id: `unsplash-${photo.id}`, provider: 'Unsplash', sourceId: String(photo.id), title: photo.alt_description || photo.description || query, thumbnail: photo.urls?.small || fileUrl, fileUrl, pageUrl: photo.links?.html, duration: 5, author: photo.user?.name || 'Unsplash photographer', width: photo.width, height: photo.height, mediaType: 'image', downloadLocation: photo.links?.download_location }
+  return { id: `unsplash-${photo.id}`, provider: 'Unsplash', sourceId: String(photo.id), title: photo.alt_description || photo.description || query, thumbnail: photo.urls?.small || fileUrl, fileUrl, pageUrl: photo.links?.html, duration: 5, author: photo.user?.name || 'Unsplash photographer', authorUrl: photo.user?.links?.html, width: photo.width, height: photo.height, mediaType: 'image', downloadLocation: photo.links?.download_location }
 }
 
 export function getStockProviderStatus() {
@@ -99,17 +99,51 @@ export async function fetchUnsplashPhotos(query) {
   const data = await response.json(); return (data.results || []).map((photo) => normalizeUnsplashPhoto(photo, query)).filter(Boolean)
 }
 
+export async function registerStockDownload(result) {
+  if (!result) return
+  try {
+    if (result.provider === 'Unsplash' && result.downloadLocation) {
+      const apiKey = getUnsplashApiKey()
+      if (apiKey) await fetch(result.downloadLocation, { headers: { Authorization: `Client-ID ${apiKey}`, 'Accept-Version': 'v1' } })
+    }
+    if (result.provider === 'Coverr' && result.downloadUrl && result.downloadUrl !== result.fileUrl) {
+      await fetch(result.downloadUrl, { method: 'HEAD', mode: 'no-cors' }).catch(() => {})
+    }
+  } catch {
+    // Attribution/download telemetry should never block the editing flow.
+  }
+}
+
+function interleaveProviderResults(groups, limit = 20) {
+  const rows = groups.map((group) => [...group])
+  const merged = []
+  let index = 0
+  while (merged.length < limit && rows.some((row) => row.length)) {
+    const row = rows[index % rows.length]
+    if (row.length) merged.push(row.shift())
+    index += 1
+  }
+  return merged
+}
+
 export async function searchStockVideos(query, provider = 'All') {
   const tasks = []
-  const add = (name, hasKey, fn) => { if ((provider === 'All' || provider === 'Both' || provider === name) && hasKey) tasks.push(fn(query)) }
+  const add = (name, hasKey, fn) => {
+    if ((provider === 'All' || provider === 'Both' || provider === name) && hasKey) tasks.push({ name, promise: fn(query) })
+  }
   add('Pexels', getPexelsApiKey(), fetchPexelsVideos)
   add('Pixabay', getPixabayApiKey(), fetchPixabayVideos)
   add('Coverr', getCoverrApiKey(), fetchCoverrVideos)
   add('Unsplash', getUnsplashApiKey(), fetchUnsplashPhotos)
   if (!tasks.length) throw new Error(`Add your ${provider === 'All' || provider === 'Both' ? 'stock provider' : provider} API key in API Keys`)
-  const settled = await Promise.allSettled(tasks)
-  const items = settled.flatMap((result) => result.status === 'fulfilled' ? result.value : [])
-  if (items.length) return items.slice(0, 16)
-  const firstError = settled.find((result) => result.status === 'rejected')
-  throw firstError?.reason || new Error('No stock media found')
+
+  const settled = await Promise.allSettled(tasks.map((task) => task.promise))
+  const successfulGroups = settled.map((result) => result.status === 'fulfilled' ? result.value : [])
+  const items = interleaveProviderResults(successfulGroups, 20)
+  if (items.length) return items
+
+  const failures = settled
+    .map((result, index) => result.status === 'rejected' ? `${tasks[index].name}: ${result.reason?.message || 'search failed'}` : null)
+    .filter(Boolean)
+  throw new Error(failures.join(' · ') || 'No stock media found')
 }
