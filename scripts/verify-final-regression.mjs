@@ -5,6 +5,7 @@ const checks = [
   ['Production build', 'npm', ['run', 'build']],
   ['Generated SFX assets', 'node', ['scripts/verify-generated-sfx-assets.mjs']],
   ['Timeline state', 'node', ['scripts/verify-timeline-state.mjs']],
+  ['Timeline layer balance', 'node', ['scripts/verify-timeline-layer-balance.mjs']],
   ['Vite transform order', 'node', ['scripts/verify-vite-transform-order.mjs']],
   ['GPU contract', 'node', ['scripts/verify-gpu-contract.mjs']],
   ['Responsiveness contract', 'node', ['scripts/verify-responsiveness-contract.mjs']],
