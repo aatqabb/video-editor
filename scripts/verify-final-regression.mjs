@@ -10,6 +10,7 @@ const checks = [
   ['Responsiveness contract', 'node', ['scripts/verify-responsiveness-contract.mjs']],
   ['Premiere panel resize contract', 'node', ['scripts/verify-premiere-panel-resize-contract.mjs']],
   ['Direct panel resize runtime contract', 'node', ['scripts/verify-panel-resize-runtime.mjs']],
+  ['Full Premiere workspace controller', 'node', ['scripts/verify-premiere-workspace-controller.mjs']],
   ['Program monitor live resize contract', 'node', ['scripts/verify-program-transform-contract.mjs']],
   ['Export contract', 'node', ['scripts/verify-export-contract.mjs']],
   ['Voice-over recording contract', 'node', ['scripts/verify-voiceover-contract.mjs']],
