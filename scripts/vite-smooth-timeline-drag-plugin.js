@@ -168,7 +168,7 @@ export function smoothTimelineDragPlugin() {
       if (!/data-track-id=\{track\.id\}/.test(next)) {
         replaceOnce(
           'track-data-id',
-          /(<div className=\{`track-lane \$\{track\.locked \? 'locked' : ''\}`\})( style=\{\{ height: trackHeight \}\})/,
+          /(<div className=\{`track-lane [^`]+`\})( style=\{\{ height: trackHeight \}\})/,
           '$1 data-track-id={track.id}$2',
         )
       } else {
