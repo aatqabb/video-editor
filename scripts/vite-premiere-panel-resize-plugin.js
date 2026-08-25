@@ -9,9 +9,48 @@ export function premierePanelResizePlugin() {
         next = next.replace("import './App.css'", "import './App.css'\nimport './PremierePanelResize.css'")
       }
 
-      next = next.replace(
-        /  const startVerticalResize = \(side, event\) => \{[\s\S]*?\n  \}\n\n  const startTimelineResize = \(event\) => \{[\s\S]*?\n  \}/,
-        `  const startVerticalResize = (side, event) => {
+      const oldResizeBlock = `  const startVerticalResize = (side, event) => {
+    event.preventDefault()
+    const startX = event.clientX
+    const startLeft = leftWidth
+    const startRight = rightWidth
+
+    const onMove = (moveEvent) => {
+      const width = editorRef.current?.getBoundingClientRect().width || window.innerWidth
+      const delta = ((moveEvent.clientX - startX) / width) * 100
+      if (side === 'left') setLeftWidth(Math.min(48, Math.max(18, startLeft + delta)))
+      if (side === 'right') setRightWidth(Math.min(48, Math.max(18, startRight - delta)))
+    }
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  const startTimelineResize = (event) => {
+    event.preventDefault()
+    const startY = event.clientY
+    const startHeight = timelineHeight
+
+    const onMove = (moveEvent) => {
+      const delta = ((startY - moveEvent.clientY) / window.innerHeight) * 100
+      setTimelineHeight(Math.min(70, Math.max(25, startHeight + delta)))
+    }
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }`
+
+      const newResizeBlock = `  const startVerticalResize = (side, event) => {
     if (event.button !== 0) return
     event.preventDefault()
     const workspace = event.currentTarget.closest('.upper-workspace')
@@ -84,9 +123,10 @@ export function premierePanelResizePlugin() {
     window.addEventListener('pointermove', onMove, true)
     window.addEventListener('pointerup', cleanup, true)
     window.addEventListener('pointercancel', cleanup, true)
-  }`,
-      )
+  }`
 
+      if (!next.includes(oldResizeBlock)) throw new Error('Premiere panel resize could not find legacy resize handlers')
+      next = next.replace(oldResizeBlock, newResizeBlock)
       next = next
         .replace("onMouseDown={(event) => startVerticalResize('left', event)}", "onPointerDown={(event) => startVerticalResize('left', event)}")
         .replace("onMouseDown={(event) => startVerticalResize('right', event)}", "onPointerDown={(event) => startVerticalResize('right', event)}")
