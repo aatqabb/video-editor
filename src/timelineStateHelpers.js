@@ -12,6 +12,31 @@ export function addTimelineTrack(tracks, type) {
   return { tracks: [...tracks, track], track }
 }
 
+function clipsOverlap(a, b) {
+  if (!a || !b || a.trackId !== b.trackId) return false
+  const aStart = Number(a.start) || 0
+  const bStart = Number(b.start) || 0
+  const aEnd = aStart + Math.max(0, Number(a.duration) || 0)
+  const bEnd = bStart + Math.max(0, Number(b.duration) || 0)
+  return aStart < bEnd - 0.0001 && aEnd > bStart + 0.0001
+}
+
+export function replaceTimelineOverlaps(clips, winnerIds) {
+  const winners = new Set(winnerIds || [])
+  if (!winners.size) return clips
+  const winnerClips = clips.filter((clip) => winners.has(clip.id))
+  if (!winnerClips.length) return clips
+
+  return clips.filter((clip) => {
+    if (winners.has(clip.id)) return true
+    return !winnerClips.some((winner) => clipsOverlap(clip, winner))
+  })
+}
+
+export function insertClipReplacingOverlaps(clips, clip) {
+  return replaceTimelineOverlaps([...clips, clip], [clip.id])
+}
+
 export function moveSelectedClips({ clips, selectedIds, anchorId, targetTrackId, tracks, requestedAnchorStart }) {
   const selected = new Set(selectedIds)
   const anchor = clips.find((clip) => clip.id === anchorId)
@@ -32,7 +57,7 @@ export function moveSelectedClips({ clips, selectedIds, anchorId, targetTrackId,
   const targetTrackIndex = anchorTypeTracks.findIndex((track) => track.id === targetTrackId)
   const trackShift = targetTrackIndex - anchorTrackIndex
 
-  return clips.map((clip) => {
+  const moved = clips.map((clip) => {
     if (!movingIds.has(clip.id)) return clip
 
     let nextTrackId = clip.trackId
@@ -45,4 +70,8 @@ export function moveSelectedClips({ clips, selectedIds, anchorId, targetTrackId,
 
     return { ...clip, start: clip.start + delta, trackId: nextTrackId }
   })
+
+  // The moved/newer clip wins. Any older clip occupying the same track/time is removed
+  // instead of continuing to play underneath it.
+  return replaceTimelineOverlaps(moved, movingIds)
 }
