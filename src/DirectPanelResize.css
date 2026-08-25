@@ -1,0 +1,91 @@
+.workspace-shell{
+  display:flex!important;
+  flex-direction:column!important;
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+}
+
+.workspace-shell>.upper-workspace{
+  display:flex!important;
+  flex-direction:row!important;
+  min-width:0;
+  min-height:120px;
+  overflow:hidden;
+}
+
+.upper-workspace>.panel{
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+}
+
+.upper-workspace>.center-panel{
+  flex:1 1 auto!important;
+  min-width:220px;
+}
+
+.workspace-shell>.timeline{
+  flex:0 0 auto!important;
+  min-height:96px;
+  max-height:calc(100% - 120px);
+  overflow:hidden;
+}
+
+.resize-handle{
+  position:relative;
+  z-index:80;
+  flex:0 0 auto;
+  touch-action:none;
+  user-select:none;
+}
+
+.resize-handle.vertical{
+  width:10px!important;
+  min-width:10px;
+  margin-left:-3px;
+  margin-right:-3px;
+  cursor:col-resize!important;
+  background:transparent!important;
+}
+
+.resize-handle.vertical::after{
+  content:'';
+  position:absolute;
+  top:0;
+  bottom:0;
+  left:4px;
+  width:2px;
+  background:#2a2a2d;
+}
+
+.resize-handle.horizontal{
+  height:10px!important;
+  min-height:10px;
+  margin-top:-2px;
+  margin-bottom:-3px;
+  cursor:row-resize!important;
+  background:transparent!important;
+}
+
+.resize-handle.horizontal::after{
+  content:'';
+  position:absolute;
+  left:0;
+  right:0;
+  top:4px;
+  height:2px;
+  background:#2a2a2d;
+}
+
+.resize-handle:hover::after{background:#2f8cff}
+
+.panel-body,.center-body,.monitor,.monitor-screen{
+  min-width:0;
+  min-height:0;
+}
+
+.monitor-screen{
+  max-width:100%;
+  max-height:100%;
+}
