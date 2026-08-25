@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import { premierePanelResizePlugin } from './vite-premiere-panel-resize-plugin.js'
 
-const source = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
+const source = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8').replace(/\r\n?/g, '\n')
 const css = fs.readFileSync(new URL('../src/PremierePanelResize.css', import.meta.url), 'utf8')
 const vite = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf8')
 const transformed = premierePanelResizePlugin().transform(source, '/repo/src/App.jsx')?.code || source
