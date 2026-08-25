@@ -3,14 +3,15 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import './timelineEnhancements.css'
 import './editorUxEnhancer.css'
+import './PremiereWorkspaceController.css'
 import App from './App.jsx'
-import './DirectPanelResize.css'
 import { installControlTooltips } from './controlTooltips.js'
 import { installTransitionPreviews } from './transitionPreviewEnhancer.js'
 import { installTimelineSelectionEnhancer } from './timelineSelectionEnhancer.js'
 import { installEditorUxEnhancer } from './editorUxEnhancer.js'
 import { installTimelineScrubLock } from './timelineScrubLock.js'
 import { installShortcutManager } from './shortcutManager.js'
+import { installPremiereWorkspaceController } from './premiereWorkspaceController.js'
 
 const removeTooltips = installControlTooltips()
 const removeTransitionPreviews = installTransitionPreviews()
@@ -18,6 +19,7 @@ const removeTimelineSelection = installTimelineSelectionEnhancer()
 const removeEditorUx = installEditorUxEnhancer()
 const removeTimelineScrubLock = installTimelineScrubLock()
 const removeShortcutManager = installShortcutManager()
+const removePremiereWorkspace = installPremiereWorkspaceController()
 window.addEventListener('beforeunload', () => {
   removeTooltips()
   removeTransitionPreviews()
@@ -25,6 +27,7 @@ window.addEventListener('beforeunload', () => {
   removeEditorUx()
   removeTimelineScrubLock()
   removeShortcutManager()
+  removePremiereWorkspace()
 }, { once: true })
 
 createRoot(document.getElementById('root')).render(
