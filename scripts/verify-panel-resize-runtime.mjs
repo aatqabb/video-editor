@@ -5,13 +5,14 @@ const main = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8'
 const css = fs.readFileSync(new URL('../src/PremierePanelResize.css', import.meta.url), 'utf8')
 
 const checks = [
-  ['runtime installer imported', main.includes("installPanelResizeRuntime")],
+  ['runtime CSS imported directly', main.includes("import './PremierePanelResize.css'" )],
+  ['runtime installer imported', main.includes('installPanelResizeRuntime')],
   ['runtime installer executed', main.includes('const removePanelResizeRuntime = installPanelResizeRuntime()')],
   ['document capture pointerdown used', runtime.includes("document.addEventListener('pointerdown', onPointerDown, true)")],
-  ['horizontal splitter writes timeline height variable', runtime.includes("--runtime-timeline-height")],
-  ['horizontal splitter writes upper height variable', runtime.includes("--runtime-upper-height")],
-  ['left splitter writes width variable', runtime.includes("--runtime-left-width")],
-  ['right splitter writes width variable', runtime.includes("--runtime-right-width")],
+  ['horizontal splitter writes timeline height variable', runtime.includes('--runtime-timeline-height')],
+  ['horizontal splitter writes upper height variable', runtime.includes('--runtime-upper-height')],
+  ['left splitter writes width variable', runtime.includes('--runtime-left-width')],
+  ['right splitter writes width variable', runtime.includes('--runtime-right-width')],
   ['resize updates use requestAnimationFrame', runtime.includes('requestAnimationFrame(apply)')],
   ['timeline runtime variable overrides React height', css.includes('height:var(--runtime-timeline-height,auto)!important')],
   ['upper runtime variable overrides React height', css.includes('height:var(--runtime-upper-height,auto)!important')],
