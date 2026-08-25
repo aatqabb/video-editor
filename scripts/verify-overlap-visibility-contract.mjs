@@ -10,7 +10,7 @@ const checks = [
   ['moving clips remove older overlaps', /return replaceTimelineOverlaps\(moved, movingIds\)/.test(helper)],
   ['new clips replace older overlaps', /const addedIds = next\.filter/.test(overlapPlugin) && /replaceTimelineOverlaps\(next, addedIds\)/.test(overlapPlugin)],
   ['touching clip edges are not treated as overlap', /aStart < bEnd - 0\.0001 && aEnd > bStart \+ 0\.0001/.test(helper)],
-  ['visibility button has explicit show hide state', /track-visibility-toggle/.test(visibilityPlugin) && /Show \\$\{track\.id\} layer/.test(visibilityPlugin) && /Hide \\$\{track\.id\} layer/.test(visibilityPlugin)],
+  ['visibility button has explicit show hide state', visibilityPlugin.includes('track-visibility-toggle') && visibilityPlugin.includes('Show ${track.id} layer') && visibilityPlugin.includes('Hide ${track.id} layer') && visibilityPlugin.includes("track.hidden ? 'OFF' : 'ON'")],
   ['hidden lanes are visually dimmed', /track-lane\.track-hidden/.test(css) && /track-control\.track-hidden/.test(css)],
   ['visibility toggle has distinct visible and hidden styles', /track-visibility-toggle\.is-visible/.test(css) && /track-visibility-toggle\.is-hidden/.test(css)],
   ['overlap and visibility plugins are wired', /overlapReplacementPlugin\(\)/.test(vite) && /trackVisibilityUiPlugin\(\)/.test(vite)],
