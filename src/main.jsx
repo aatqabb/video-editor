@@ -13,6 +13,7 @@ import { installEditorUxEnhancer } from './editorUxEnhancer.js'
 import { installTimelineScrubLock } from './timelineScrubLock.js'
 import { installShortcutManager } from './shortcutManager.js'
 import { installPremiereWorkspaceController } from './premiereWorkspaceController.js'
+import { installTimelineLayerBalance } from './timelineLayerBalance.js'
 
 const removeTooltips = installControlTooltips()
 const removeTransitionPreviews = installTransitionPreviews()
@@ -21,6 +22,7 @@ const removeEditorUx = installEditorUxEnhancer()
 const removeTimelineScrubLock = installTimelineScrubLock()
 const removeShortcutManager = installShortcutManager()
 const removePremiereWorkspace = installPremiereWorkspaceController()
+const removeTimelineLayerBalance = installTimelineLayerBalance()
 window.addEventListener('beforeunload', () => {
   removeTooltips()
   removeTransitionPreviews()
@@ -29,6 +31,7 @@ window.addEventListener('beforeunload', () => {
   removeTimelineScrubLock()
   removeShortcutManager()
   removePremiereWorkspace()
+  removeTimelineLayerBalance()
 }, { once: true })
 
 createRoot(document.getElementById('root')).render(
