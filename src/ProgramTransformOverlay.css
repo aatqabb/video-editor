@@ -1,6 +1,10 @@
 .monitor-screen.program{position:relative;overflow:hidden}
 .program-video-layer{position:absolute;cursor:pointer;will-change:width,height;transform-origin:center center}
 .program-video-layer>video,.program-video-layer>img{display:block;width:100%;height:100%;object-fit:inherit;pointer-events:none}
+.program-media-shell{position:absolute;inset:0;width:100%;height:100%;background:#09090b;overflow:hidden}
+.program-media-shell>video,.program-media-shell>img{display:block;width:100%;height:100%;object-fit:inherit;pointer-events:none}
+.program-media-fallback{position:absolute;inset:0;z-index:2;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#0a0a0c;color:#8d8d95}
+.program-video-placeholder{display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-height:60px;background:#0a0a0c;color:#8d8d95;text-align:center;padding:12px}
 .program-video-selected{outline:1px solid rgba(87,166,255,.95);outline-offset:0}
 .program-transform-box{position:absolute;inset:0;z-index:20;border:1px solid #58a6ff;pointer-events:none}
 .program-transform-size{position:absolute;left:50%;top:-25px;transform:translateX(-50%);background:rgba(13,13,15,.92);border:1px solid #58a6ff;border-radius:3px;color:#dbeeff;font:10px/18px Segoe UI,Arial,sans-serif;padding:0 6px;white-space:nowrap;pointer-events:none}
@@ -10,3 +14,8 @@
 .program-resize-handle.bottom-left{left:-6px;bottom:-6px;cursor:nesw-resize}
 .program-resize-handle.bottom-right{right:-6px;bottom:-6px;cursor:nwse-resize}
 .program-resize-handle:hover{background:#d8ecff}
+.track-control.track-hidden{opacity:.58}
+.track-lane.track-hidden .timeline-clip{opacity:.42;filter:saturate(.55)}
+.track-hidden-toggle{font-size:12px!important}
+.track-hidden-toggle.on{background:#5b2730!important;color:#ffd7dc!important}
+.transition-start-badge{position:absolute;left:0;top:0;bottom:0;z-index:6;min-width:12px;max-width:55%;display:flex;align-items:center;justify-content:center;background:linear-gradient(90deg,rgba(255,189,65,.95),rgba(255,189,65,.18));border-right:1px solid rgba(255,229,167,.85);color:#15110a;font-size:10px;font-weight:700;pointer-events:none;text-shadow:none}
