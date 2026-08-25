@@ -1,18 +1,82 @@
-.workspace-shell>.upper-workspace{height:var(--runtime-upper-height,auto)!important;min-height:120px;min-width:0}
-.workspace-shell>.timeline{height:var(--runtime-timeline-height,auto)!important;min-height:96px}
-.panel{min-width:0}
-.left-panel{width:var(--runtime-left-width,32%)!important;min-width:145px}
-.right-panel{width:var(--runtime-right-width,33%)!important;min-width:145px}
-.center-panel{min-width:220px}
-.panel-body{min-width:0;min-height:0}
-.resize-handle{position:relative;z-index:40;flex-shrink:0;touch-action:none}
-.resize-handle.vertical{width:10px;margin-left:-3px;margin-right:-3px;cursor:col-resize;background:transparent;border:0}
-.resize-handle.vertical::after{content:'';position:absolute;top:0;bottom:0;left:4px;width:2px;background:#26262a}
-.resize-handle.horizontal{height:11px;margin-top:-3px;margin-bottom:-3px;cursor:row-resize;background:transparent;border:0}
-.resize-handle.horizontal::after{content:'';position:absolute;left:0;right:0;top:5px;height:2px;background:#26262a}
-.resize-handle.vertical:hover::after,.resize-handle.horizontal:hover::after{background:#2f8cff}
+.workspace-shell{
+  flex:1!important;
+  min-height:0;
+  min-width:0;
+  display:grid!important;
+  grid-template-rows:minmax(120px,calc(58% - 5px)) 10px minmax(96px,calc(42% - 5px));
+  overflow:hidden;
+}
+
+.workspace-shell>.upper-workspace{
+  height:auto!important;
+  min-height:0!important;
+  min-width:0;
+  display:grid!important;
+  grid-template-columns:minmax(145px,32fr) 10px minmax(220px,35fr) 10px minmax(145px,33fr);
+  overflow:hidden;
+}
+
+.workspace-shell>.timeline{
+  height:auto!important;
+  min-height:0!important;
+  min-width:0;
+  overflow:hidden;
+}
+
+.upper-workspace>.left-panel,
+.upper-workspace>.center-panel,
+.upper-workspace>.right-panel{
+  width:auto!important;
+  min-width:0!important;
+  min-height:0;
+  overflow:hidden;
+}
+
+.panel-body,.center-body,.monitor,.monitor-screen{min-width:0;min-height:0}
+.panel-body{overflow:auto}
+.center-body{overflow:hidden}
+.monitor-screen{max-width:100%;max-height:100%}
+
+.resize-handle{
+  position:relative;
+  z-index:60;
+  touch-action:none;
+  user-select:none;
+  background:#0f0f11;
+  border:0;
+  margin:0!important;
+  align-self:stretch;
+  justify-self:stretch;
+}
+.resize-handle.vertical{
+  width:10px!important;
+  min-width:10px;
+  cursor:col-resize;
+}
+.resize-handle.vertical::after{
+  content:'';
+  position:absolute;
+  top:0;bottom:0;
+  left:4px;
+  width:2px;
+  background:#2a2a2e;
+}
+.resize-handle.horizontal{
+  height:10px!important;
+  min-height:10px;
+  cursor:row-resize;
+}
+.resize-handle.horizontal::after{
+  content:'';
+  position:absolute;
+  left:0;right:0;
+  top:4px;
+  height:2px;
+  background:#2a2a2e;
+}
+.resize-handle:hover::after{background:#2f8cff}
+
 .premiere-panel-resizing,.premiere-panel-resizing *{user-select:none!important}
 .premiere-panel-resizing-col,.premiere-panel-resizing-col *{cursor:col-resize!important}
 .premiere-panel-resizing-row,.premiere-panel-resizing-row *{cursor:row-resize!important}
 .upper-workspace>.panel,.timeline{transition:none!important}
-.center-body,.monitor,.monitor-screen{min-width:0;min-height:0}
