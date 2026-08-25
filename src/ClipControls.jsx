@@ -22,13 +22,30 @@ const defaultAudio = {
   fadeOut: 0,
 }
 
+function EffectSection({ title, hint, onReset, children, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <section className={`effect-section ${open ? 'open' : ''}`}>
+      <div className="effect-section-head">
+        <button className="effect-section-toggle" onClick={() => setOpen((value) => !value)} aria-expanded={open}>{open ? '▾' : '▸'}</button>
+        <button className="effect-section-title" onClick={() => setOpen((value) => !value)}>{title}</button>
+        {hint && <span className="effect-section-hint">{hint}</span>}
+        {onReset && <button className="effect-reset" onClick={onReset} title={`Reset ${title}`}>↶</button>}
+      </div>
+      {open && <div className="effect-section-body">{children}</div>}
+    </section>
+  )
+}
+
 function NumericControl({ label, value, min, max, step = 1, suffix = '', onChange }) {
   return (
     <label className="clip-control-row">
-      <span>{label}</span>
+      <span className="clip-control-label">{label}</span>
       <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
-      <input className="clip-control-number" type="number" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
-      {suffix && <small>{suffix}</small>}
+      <span className="clip-control-value">
+        <input className="clip-control-number" type="number" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
+        {suffix && <small>{suffix}</small>}
+      </span>
     </label>
   )
 }
@@ -42,35 +59,61 @@ export function VideoControls({ clip, onUpdate, notify }) {
   const patch = (values) => onUpdate(clip.id, { video: { ...transform, ...values } })
 
   return (
-    <div className="clip-controls-panel">
-      <div className="clip-controls-heading"><strong>VIDEO CONTROLS</strong><span>{clip.name}</span></div>
-      <NumericControl label="Position X" value={transform.positionX} min={0} max={100} step={0.1} suffix="%" onChange={(value) => patch({ positionX: value })} />
-      <NumericControl label="Position Y" value={transform.positionY} min={0} max={100} step={0.1} suffix="%" onChange={(value) => patch({ positionY: value })} />
-      <NumericControl label="Scale" value={transform.scale} min={1} max={400} step={1} suffix="%" onChange={(value) => patch({ scale: value })} />
-      <NumericControl label="Rotation" value={transform.rotation} min={-180} max={180} step={1} suffix="°" onChange={(value) => patch({ rotation: value })} />
-      <NumericControl label="Opacity" value={transform.opacity} min={0} max={100} step={1} suffix="%" onChange={(value) => patch({ opacity: value })} />
-
-      <div className="clip-control-section">CROP</div>
-      <div className="crop-grid">
-        {[
-          ['Top', 'cropTop'], ['Right', 'cropRight'], ['Bottom', 'cropBottom'], ['Left', 'cropLeft'],
-        ].map(([label, key]) => (
-          <label key={key}><span>{label}</span><input type="number" min="0" max="49" value={transform[key]} onChange={(event) => patch({ [key]: Number(event.target.value) })} /><small>%</small></label>
-        ))}
+    <div className="clip-controls-panel effect-controls-panel">
+      <div className="clip-controls-heading">
+        <div><strong>EFFECT CONTROLS</strong><small>Video</small></div>
+        <span>{clip.name}</span>
       </div>
 
-      <div className="clip-control-section">FRAME</div>
-      <div className="clip-button-row">
-        {['Fit', 'Fill', 'Stretch'].map((mode) => <button key={mode} className={transform.fitMode === mode ? 'active' : ''} onClick={() => patch({ fitMode: mode })}>{mode}</button>)}
-      </div>
+      <EffectSection title="Motion" hint="Transform" onReset={() => patch({ positionX: 50, positionY: 50, scale: 100, rotation: 0 })}>
+        <NumericControl label="Position X" value={transform.positionX} min={0} max={100} step={0.1} suffix="%" onChange={(value) => patch({ positionX: value })} />
+        <NumericControl label="Position Y" value={transform.positionY} min={0} max={100} step={0.1} suffix="%" onChange={(value) => patch({ positionY: value })} />
+        <NumericControl label="Scale" value={transform.scale} min={1} max={400} step={1} suffix="%" onChange={(value) => patch({ scale: value })} />
+        <NumericControl label="Rotation" value={transform.rotation} min={-180} max={180} step={1} suffix="°" onChange={(value) => patch({ rotation: value })} />
+        <div className="effect-quick-row">
+          <button onClick={() => patch({ positionX: 50, positionY: 50 })}>Center</button>
+          <button onClick={() => patch({ scale: 100 })}>100%</button>
+          <button onClick={() => patch({ rotation: 0 })}>0°</button>
+        </div>
+      </EffectSection>
 
-      <NumericControl label="Speed" value={transform.speed} min={0.1} max={4} step={0.1} suffix="×" onChange={(value) => patch({ speed: value })} />
+      <EffectSection title="Opacity" hint="Compositing" onReset={() => patch({ opacity: 100 })}>
+        <NumericControl label="Opacity" value={transform.opacity} min={0} max={100} step={1} suffix="%" onChange={(value) => patch({ opacity: value })} />
+        <div className="effect-quick-row">
+          {[25, 50, 75, 100].map((value) => <button key={value} className={transform.opacity === value ? 'active' : ''} onClick={() => patch({ opacity: value })}>{value}%</button>)}
+        </div>
+      </EffectSection>
 
-      <div className="clip-button-row wide">
-        <button className={transform.freezeFrame ? 'active' : ''} onClick={() => { patch({ freezeFrame: !transform.freezeFrame }); notify(transform.freezeFrame ? 'Freeze frame disabled' : 'Freeze frame enabled') }}>
-          {transform.freezeFrame ? '❄ Freeze On' : '❄ Freeze Frame'}
-        </button>
-        <button onClick={() => onUpdate(clip.id, { video: { ...defaultVideo } })}>Reset Video</button>
+      <EffectSection title="Crop" hint="Edges" onReset={() => patch({ cropTop: 0, cropRight: 0, cropBottom: 0, cropLeft: 0 })} defaultOpen={false}>
+        <div className="crop-grid">
+          {[
+            ['Top', 'cropTop'], ['Right', 'cropRight'], ['Bottom', 'cropBottom'], ['Left', 'cropLeft'],
+          ].map(([label, key]) => (
+            <label key={key}><span>{label}</span><input type="number" min="0" max="49" value={transform[key]} onChange={(event) => patch({ [key]: Number(event.target.value) })} /><small>%</small></label>
+          ))}
+        </div>
+      </EffectSection>
+
+      <EffectSection title="Frame" hint="Fit mode" onReset={() => patch({ fitMode: 'Fit' })} defaultOpen={false}>
+        <div className="clip-button-row segmented">
+          {['Fit', 'Fill', 'Stretch'].map((mode) => <button key={mode} className={transform.fitMode === mode ? 'active' : ''} onClick={() => patch({ fitMode: mode })}>{mode}</button>)}
+        </div>
+      </EffectSection>
+
+      <EffectSection title="Time Remapping" hint="Speed" onReset={() => patch({ speed: 1, freezeFrame: false })}>
+        <NumericControl label="Speed" value={transform.speed} min={0.1} max={4} step={0.1} suffix="×" onChange={(value) => patch({ speed: value })} />
+        <div className="effect-quick-row speed-presets">
+          {[0.5, 1, 1.5, 2].map((value) => <button key={value} className={transform.speed === value ? 'active' : ''} onClick={() => patch({ speed: value })}>{value}×</button>)}
+        </div>
+        <div className="clip-button-row wide">
+          <button className={transform.freezeFrame ? 'active' : ''} onClick={() => { patch({ freezeFrame: !transform.freezeFrame }); notify(transform.freezeFrame ? 'Freeze frame disabled' : 'Freeze frame enabled') }}>
+            {transform.freezeFrame ? '❄ Freeze On' : '❄ Freeze Frame'}
+          </button>
+        </div>
+      </EffectSection>
+
+      <div className="effect-footer-actions">
+        <button onClick={() => onUpdate(clip.id, { video: { ...defaultVideo } })}>Reset All Video Effects</button>
       </div>
     </div>
   )
@@ -85,12 +128,22 @@ export function AudioControls({ clip, onUpdate }) {
   const patch = (values) => onUpdate(clip.id, { audio: { ...audio, ...values } })
 
   return (
-    <div className="clip-controls-panel">
-      <div className="clip-controls-heading"><strong>AUDIO CONTROLS</strong><span>{clip.name}</span></div>
-      <NumericControl label="Volume" value={audio.volume} min={0} max={200} step={1} suffix="%" onChange={(value) => patch({ volume: value })} />
-      <NumericControl label="Fade In" value={audio.fadeIn} min={0} max={10} step={0.1} suffix="s" onChange={(value) => patch({ fadeIn: value })} />
-      <NumericControl label="Fade Out" value={audio.fadeOut} min={0} max={10} step={0.1} suffix="s" onChange={(value) => patch({ fadeOut: value })} />
-      <div className="clip-button-row wide"><button onClick={() => onUpdate(clip.id, { audio: { ...defaultAudio } })}>Reset Audio</button></div>
+    <div className="clip-controls-panel effect-controls-panel">
+      <div className="clip-controls-heading"><div><strong>EFFECT CONTROLS</strong><small>Audio</small></div><span>{clip.name}</span></div>
+      <EffectSection title="Volume" hint="Level" onReset={() => patch({ volume: 100 })}>
+        <NumericControl label="Volume" value={audio.volume} min={0} max={200} step={1} suffix="%" onChange={(value) => patch({ volume: value })} />
+        <div className="effect-quick-row">
+          {[0, 50, 100, 150].map((value) => <button key={value} className={audio.volume === value ? 'active' : ''} onClick={() => patch({ volume: value })}>{value}%</button>)}
+        </div>
+      </EffectSection>
+      <EffectSection title="Audio Transitions" hint="Fades" onReset={() => patch({ fadeIn: 0, fadeOut: 0 })}>
+        <NumericControl label="Fade In" value={audio.fadeIn} min={0} max={10} step={0.1} suffix="s" onChange={(value) => patch({ fadeIn: value })} />
+        <NumericControl label="Fade Out" value={audio.fadeOut} min={0} max={10} step={0.1} suffix="s" onChange={(value) => patch({ fadeOut: value })} />
+        <div className="effect-quick-row">
+          {[0, .5, 1, 2].map((value) => <button key={value} onClick={() => patch({ fadeIn: value, fadeOut: value })}>{value}s</button>)}
+        </div>
+      </EffectSection>
+      <div className="effect-footer-actions"><button onClick={() => onUpdate(clip.id, { audio: { ...defaultAudio } })}>Reset All Audio Effects</button></div>
     </div>
   )
 }
