@@ -52,13 +52,11 @@ export function premierePlayheadPlugin() {
     event.preventDefault()
     event.stopPropagation()
 
-    const captureTarget = event.currentTarget
     const pointerId = event.pointerId
     let latestX = event.clientX
     let frame = 0
     let dragging = true
 
-    captureTarget.setPointerCapture?.(pointerId)
     document.body.classList.add('timeline-playhead-dragging')
     setPlayhead(pointerToTime({ clientX: latestX }))
 
@@ -72,7 +70,7 @@ export function premierePlayheadPlugin() {
       if (!frame) frame = window.requestAnimationFrame(applyPosition)
     }
     const cleanupDrag = (finalEvent, commitFinal = true) => {
-      if (finalEvent.pointerId !== pointerId) return
+      if (finalEvent.pointerId !== pointerId || !dragging) return
       dragging = false
       if (frame) {
         window.cancelAnimationFrame(frame)
@@ -82,29 +80,20 @@ export function premierePlayheadPlugin() {
         latestX = finalEvent.clientX
         setPlayhead(pointerToTime({ clientX: latestX }))
       }
-      captureTarget.removeEventListener('pointermove', onMove, true)
-      captureTarget.removeEventListener('lostpointercapture', onLostCapture, true)
       window.removeEventListener('pointermove', onMove, true)
       window.removeEventListener('pointerup', onUp, true)
       window.removeEventListener('pointercancel', onCancel, true)
       document.body.classList.remove('timeline-playhead-dragging')
-      try { captureTarget.releasePointerCapture?.(pointerId) } catch { /* capture may already be released */ }
     }
     const onMove = (moveEvent) => {
-      if (moveEvent.pointerId !== pointerId) return
+      if (moveEvent.pointerId !== pointerId || !dragging) return
       moveEvent.preventDefault()
       moveEvent.stopPropagation()
       schedulePosition(moveEvent.clientX)
     }
     const onUp = (upEvent) => cleanupDrag(upEvent, true)
     const onCancel = (cancelEvent) => cleanupDrag(cancelEvent, false)
-    const onLostCapture = (lostEvent) => {
-      if (lostEvent.pointerId !== pointerId || !dragging) return
-      cleanupDrag(lostEvent, true)
-    }
 
-    captureTarget.addEventListener('pointermove', onMove, true)
-    captureTarget.addEventListener('lostpointercapture', onLostCapture, true)
     window.addEventListener('pointermove', onMove, true)
     window.addEventListener('pointerup', onUp, true)
     window.addEventListener('pointercancel', onCancel, true)
