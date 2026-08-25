@@ -20,8 +20,10 @@ export function allAudioWaveformsPlugin() {
 
       const oldStereo = /\{clip\.type === 'audio' \? \(\n\s*<span className="timeline-waveform-real premiere-waveform" aria-hidden="true">[\s\S]*?<\/span>\n\s*\) : null\}/
       const legacyBlock = /\{clip\.type === 'audio' \? \(\n\s*<span className="timeline-waveform-real" aria-hidden="true">[\s\S]*?<\/span>\n\s*\) : null\}/
+      const originalBlock = /\{clip\.type === 'audio' && clip\.waveform\?\.length \? \([\s\S]*?\) : clip\.type === 'audio' \? <span className="waveform-faux" aria-hidden="true" \/> : null\}/
       if (oldStereo.test(next)) next = next.replace(oldStereo, stereoBlock)
       else if (legacyBlock.test(next)) next = next.replace(legacyBlock, stereoBlock)
+      else if (originalBlock.test(next)) next = next.replace(originalBlock, stereoBlock)
       else throw new Error('All audio waveforms could not replace timeline audio waveform block')
 
       return { code: next, map: null }
