@@ -1,0 +1,8 @@
+.ruler-spacer{height:38px!important;background:#171719;border-bottom:6px solid #101012!important}
+.time-ruler{height:32px!important;margin-bottom:6px!important;border-bottom:1px solid #3a3a40!important;box-shadow:0 4px 0 #101012!important}
+.track-lanes{position:relative;min-height:100%}
+.track-control:first-of-type,.track-lane:first-of-type{border-top:1px solid #34343a}
+.track-control{gap:6px!important;padding-left:6px!important;padding-right:6px!important}
+.track-control strong{width:26px!important}
+.track-control .track-delete{width:26px!important;height:26px!important;min-width:26px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;border:1px solid #3b3b41!important;border-radius:4px!important;background:#222226!important;color:#c8c8ce!important;font-size:17px!important;line-height:1!important;padding:0!important;margin-left:1px!important}
+.track-control .track-delete:hover{background:#4a2328!important;border-color:#7d3a42!important;color:#fff!important}
