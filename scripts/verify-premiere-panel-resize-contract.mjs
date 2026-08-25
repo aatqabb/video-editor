@@ -16,9 +16,9 @@ const checks = [
   ['timeline keeps usable upper workspace', /const maxTimeline =/, transformed],
   ['drag cursor stays locked during resize', /premiere-panel-resizing-col[\s\S]*premiere-panel-resizing-row/, transformed],
   ['panel resize css is imported', /PremierePanelResize\.css/, transformed],
-  ['timeline css minimum reduced', /\.timeline\{min-height:96px\}/, css],
-  ['upper workspace css minimum retained', /\.upper-workspace\{min-height:120px/, css],
-  ['splitter hover feedback exists', /resize-handle\.vertical:hover/, css],
+  ['timeline css minimum reduced', /\.workspace-shell>\.timeline\{[^}]*min-height:96px/, css],
+  ['upper workspace css minimum retained', /\.workspace-shell>\.upper-workspace\{[^}]*min-height:120px/, css],
+  ['splitter hover feedback exists', /resize-handle\.vertical:hover::after/, css],
 ]
 
 let failed = false
