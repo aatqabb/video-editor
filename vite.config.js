@@ -11,7 +11,6 @@ import { premierePlayheadPlugin } from './scripts/vite-premiere-playhead-plugin.
 import { trackDeletePlugin } from './scripts/vite-track-delete-plugin.js'
 import { stockWorkspacePlugin } from './scripts/vite-stock-workspace-plugin.js'
 import { programTransformOverlayPlugin } from './scripts/vite-program-transform-overlay-plugin.js'
-import { premierePanelResizePlugin } from './scripts/vite-premiere-panel-resize-plugin.js'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -26,7 +25,7 @@ export default defineConfig({
   // after timeline transforms so it patches the final dynamic Timeline signature.
   // Program transform overlay runs after the playback transforms so the program
   // monitor keeps the real media visible while resize handles update scale live.
-  // Panel resize runs last among App transforms so its pointer splitters survive
-  // the timeline/playback transforms and resize the final rendered workspace.
-  plugins: [normalizeLineEndingsPlugin(), stockWorkspacePlugin(), timelineRefactorPlugin(), playbackMediaPlugin(), unlimitedTimelineImportPlugin(), durationUiSyncPlugin(), programPlaybackSyncPlugin(), premierePlayheadPlugin(), smoothTimelineDragPlugin(), trackDeletePlugin(), programTransformOverlayPlugin(), premierePanelResizePlugin(), react()],
+  // Panel resizing is intentionally implemented directly by App.jsx + App.css;
+  // do not reintroduce a transform/runtime override for workspace dimensions.
+  plugins: [normalizeLineEndingsPlugin(), stockWorkspacePlugin(), timelineRefactorPlugin(), playbackMediaPlugin(), unlimitedTimelineImportPlugin(), durationUiSyncPlugin(), programPlaybackSyncPlugin(), premierePlayheadPlugin(), smoothTimelineDragPlugin(), trackDeletePlugin(), programTransformOverlayPlugin(), react()],
 })
