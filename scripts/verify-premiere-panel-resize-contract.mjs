@@ -1,37 +1,34 @@
 import fs from 'node:fs'
-import { premierePanelResizePlugin } from './vite-premiere-panel-resize-plugin.js'
 
 const source = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8').replace(/\r\n?/g, '\n')
-const css = fs.readFileSync(new URL('../src/PremierePanelResize.css', import.meta.url), 'utf8')
+const css = fs.readFileSync(new URL('../src/App.css', import.meta.url), 'utf8')
 const main = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
 const vite = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf8')
-const transformed = premierePanelResizePlugin().transform(source, '/repo/src/App.jsx')?.code || source
 
 const checks = [
-  ['panel resize plugin enabled', /premierePanelResizePlugin\(\)/, vite],
-  ['duplicate resize runtime removed', !/installPanelResizeRuntime/.test(main)],
-  ['vertical panel resize uses pointer events', /onPointerDown=\{\(event\) => startVerticalResize/, transformed],
-  ['timeline resize uses pointer events', /onPointerDown=\{startTimelineResize\}/, transformed],
-  ['resize updates run through animation frames', /requestAnimationFrame\(apply\)/, transformed],
-  ['timeline state directly drives grid rows', /gridTemplateRows:[\s\S]*100 - timelineHeight[\s\S]*timelineHeight/, transformed],
-  ['panel state directly drives grid columns', /gridTemplateColumns:[\s\S]*leftWidth[\s\S]*100 - leftWidth - rightWidth[\s\S]*rightWidth/, transformed],
-  ['outer workspace is a grid split pane', /\.workspace-shell\{[^}]*display:grid[^}]*grid-template-rows:/, css],
-  ['upper workspace is a nested grid split pane', /\.workspace-shell>\.upper-workspace\{[^}]*display:grid[^}]*grid-template-columns:/, css],
-  ['timeline minimum remains usable', /minmax\(96px/, css],
-  ['upper workspace minimum remains usable', /minmax\(120px/, css],
-  ['side panels preserve minimum width', /minmax\(145px/, css],
-  ['center panel preserves minimum width', /minmax\(220px/, css],
-  ['drag cursor stays locked during resize', /premiere-panel-resizing-col[\s\S]*premiere-panel-resizing-row/, transformed],
-  ['splitter hover feedback exists', /\.resize-handle:hover::after\{background:#2f8cff\}/, css],
-  ['panel content remains constrained to panes', /\.panel-body,\.center-body,\.monitor,\.monitor-screen\{min-width:0;min-height:0\}/, css],
-  ['panel body scroll stays inside pane', /\.panel-body\{overflow:auto\}/, css],
+  ['panel resize transform disabled', !vite.includes('premierePanelResizePlugin')],
+  ['override resize CSS not imported', !main.includes("PremierePanelResize.css")],
+  ['legacy document runtime removed', !main.includes('installPanelResizeRuntime')],
+  ['vertical resize lives in App source', /const startVerticalResize = \(side, event\) =>/.test(source)],
+  ['timeline resize lives in App source', /const startTimelineResize = \(event\) =>/.test(source)],
+  ['left panel width is state-driven', /left-panel" style=\{\{ width: `\$\{leftWidth\}%` \}\}/.test(source)],
+  ['right panel width is state-driven', /right-panel" style=\{\{ width: `\$\{rightWidth\}%` \}\}/.test(source)],
+  ['upper workspace height is state-driven', /upper-workspace" style=\{\{ height: `\$\{100 - timelineHeight\}%` \}\}/.test(source)],
+  ['timeline receives independent height state', /<Timeline[\s\S]*height=\{timelineHeight\}/.test(source)],
+  ['vertical splitters are present in source', (source.match(/resize-handle vertical/g) || []).length === 2],
+  ['horizontal splitter is present in source', source.includes('resize-handle horizontal')],
+  ['workspace uses direct flex reflow', /\.workspace-shell\{[^}]*display:flex[^}]*flex-direction:column/.test(css)],
+  ['upper workspace uses direct horizontal flex', /\.upper-workspace\{[^}]*display:flex/.test(css)],
+  ['center panel absorbs remaining width', /\.center-panel\{[^}]*flex:1/.test(css)],
+  ['timeline does not flex-shrink', /\.timeline\{[^}]*flex-shrink:0/.test(css)],
+  ['vertical resize cursor exists', /\.resize-handle\.vertical\{[^}]*cursor:col-resize/.test(css)],
+  ['horizontal resize cursor exists', /\.resize-handle\.horizontal\{[^}]*cursor:row-resize/.test(css)],
 ]
 
 let failed = false
-for (const [name, okOrPattern, sourceText] of checks) {
-  const ok = typeof okOrPattern === 'boolean' ? okOrPattern : okOrPattern.test(sourceText)
+for (const [name, ok] of checks) {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`)
   if (!ok) failed = true
 }
 if (failed) process.exit(1)
-console.log('PASS React-driven Premiere split-pane contract verified.')
+console.log('PASS direct-source Premiere panel resize contract verified.')
