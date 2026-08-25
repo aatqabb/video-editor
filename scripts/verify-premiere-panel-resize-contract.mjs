@@ -9,7 +9,7 @@ const transformed = premierePanelResizePlugin().transform(source, '/repo/src/App
 
 const checks = [
   ['panel resize plugin enabled', /premierePanelResizePlugin\(\)/, vite],
-  ['duplicate resize runtime removed', !/installPanelResizeRuntime/, main],
+  ['duplicate resize runtime removed', !/installPanelResizeRuntime/.test(main)],
   ['vertical panel resize uses pointer events', /onPointerDown=\{\(event\) => startVerticalResize/, transformed],
   ['timeline resize uses pointer events', /onPointerDown=\{startTimelineResize\}/, transformed],
   ['resize updates run through animation frames', /requestAnimationFrame\(apply\)/, transformed],
