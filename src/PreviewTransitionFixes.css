@@ -1,0 +1,15 @@
+.program-media-stack{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#050506}
+.program-media-stack>img,.program-media-stack>video{position:absolute;inset:0;width:100%;height:100%;display:block;transition:opacity .08s linear;background:#050506}
+.program-media-fallback{z-index:1}
+.program-media-stack>video{z-index:2}
+
+.track-control.track-hidden{opacity:.58;background:#101012}
+.track-control.track-hidden strong{text-decoration:line-through;color:#77777f}
+.track-lane.track-hidden{background:#0d0d0f}
+.track-lane.track-hidden .timeline-clip{opacity:.34;filter:saturate(.35)}
+.track-control button[aria-pressed="true"]{background:#5b2630!important;color:#fff!important}
+
+.transition-badge{position:absolute;left:0;top:0;bottom:0;z-index:6;display:flex;align-items:center;justify-content:center;min-width:14px;max-width:45%;overflow:hidden;pointer-events:none;border-right:2px solid rgba(255,255,255,.9);background:repeating-linear-gradient(135deg,rgba(255,255,255,.38) 0 3px,rgba(0,0,0,.25) 3px 6px);box-shadow:inset -1px 0 rgba(0,0,0,.45)}
+.transition-badge:before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#fff;opacity:.88}
+.transition-badge-icon{font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px #000;line-height:1}
+.timeline-clip.selected .transition-badge{outline:1px solid rgba(255,255,255,.88);outline-offset:-1px}

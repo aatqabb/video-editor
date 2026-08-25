@@ -11,21 +11,10 @@ import { premierePlayheadPlugin } from './scripts/vite-premiere-playhead-plugin.
 import { trackDeletePlugin } from './scripts/vite-track-delete-plugin.js'
 import { stockWorkspacePlugin } from './scripts/vite-stock-workspace-plugin.js'
 import { programTransformOverlayPlugin } from './scripts/vite-program-transform-overlay-plugin.js'
+import { timelineTransitionVisibilityPlugin } from './scripts/vite-timeline-transition-visibility-plugin.js'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // Electron loads dist/index.html through file://, so production assets must be
-  // referenced relatively instead of from /assets at the filesystem root.
   base: './',
-  // Transform order matters. Stock workspace replaces the legacy placeholder
-  // before React compilation. Duration sync must patch the original Monitor
-  // signature before playback sync injects media helpers around that component.
-  // The playhead transform must also run before smooth drag so it cannot erase
-  // the final pointer-drag handler from generated App code. Track deletion runs
-  // after timeline transforms so it patches the final dynamic Timeline signature.
-  // Program transform overlay runs after the playback transforms so the program
-  // monitor keeps the real media visible while resize handles update scale live.
-  // Panel resizing is intentionally implemented directly by App.jsx + App.css;
-  // do not reintroduce a transform/runtime override for workspace dimensions.
-  plugins: [normalizeLineEndingsPlugin(), stockWorkspacePlugin(), timelineRefactorPlugin(), playbackMediaPlugin(), unlimitedTimelineImportPlugin(), durationUiSyncPlugin(), programPlaybackSyncPlugin(), premierePlayheadPlugin(), smoothTimelineDragPlugin(), trackDeletePlugin(), programTransformOverlayPlugin(), react()],
+  plugins: [normalizeLineEndingsPlugin(), stockWorkspacePlugin(), timelineRefactorPlugin(), playbackMediaPlugin(), unlimitedTimelineImportPlugin(), durationUiSyncPlugin(), programPlaybackSyncPlugin(), premierePlayheadPlugin(), smoothTimelineDragPlugin(), trackDeletePlugin(), timelineTransitionVisibilityPlugin(), programTransformOverlayPlugin(), react()],
 })

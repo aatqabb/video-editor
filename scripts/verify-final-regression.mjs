@@ -6,6 +6,7 @@ const checks = [
   ['Generated SFX assets', 'node', ['scripts/verify-generated-sfx-assets.mjs']],
   ['Timeline state', 'node', ['scripts/verify-timeline-state.mjs']],
   ['Track visibility and preview', 'node', ['scripts/verify-track-visibility-preview-contract.mjs']],
+  ['Preview hide and transition visibility', 'node', ['scripts/verify-preview-transition-contract.mjs']],
   ['Timeline layer balance', 'node', ['scripts/verify-timeline-layer-balance.mjs']],
   ['Vite transform order', 'node', ['scripts/verify-vite-transform-order.mjs']],
   ['GPU contract', 'node', ['scripts/verify-gpu-contract.mjs']],
