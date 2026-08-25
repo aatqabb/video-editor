@@ -10,6 +10,7 @@ import { installTimelineSelectionEnhancer } from './timelineSelectionEnhancer.js
 import { installEditorUxEnhancer } from './editorUxEnhancer.js'
 import { installTimelineScrubLock } from './timelineScrubLock.js'
 import { installShortcutManager } from './shortcutManager.js'
+import { installPanelResizeRuntime } from './panelResizeRuntime.js'
 
 const removeTooltips = installControlTooltips()
 const removeTransitionPreviews = installTransitionPreviews()
@@ -17,6 +18,7 @@ const removeTimelineSelection = installTimelineSelectionEnhancer()
 const removeEditorUx = installEditorUxEnhancer()
 const removeTimelineScrubLock = installTimelineScrubLock()
 const removeShortcutManager = installShortcutManager()
+const removePanelResizeRuntime = installPanelResizeRuntime()
 window.addEventListener('beforeunload', () => {
   removeTooltips()
   removeTransitionPreviews()
@@ -24,6 +26,7 @@ window.addEventListener('beforeunload', () => {
   removeEditorUx()
   removeTimelineScrubLock()
   removeShortcutManager()
+  removePanelResizeRuntime()
 }, { once: true })
 
 createRoot(document.getElementById('root')).render(
