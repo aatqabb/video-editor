@@ -3,11 +3,19 @@
 .program-media-fallback{z-index:1}
 .program-media-stack>video{z-index:2}
 
-.track-control.track-hidden{opacity:.58;background:#101012}
-.track-control.track-hidden strong{text-decoration:line-through;color:#77777f}
-.track-lane.track-hidden{background:#0d0d0f}
-.track-lane.track-hidden .timeline-clip{opacity:.34;filter:saturate(.35)}
+.track-control.track-hidden{opacity:.72;background:#0d0d0f;box-shadow:inset 3px 0 #6b3038}
+.track-control.track-hidden strong{text-decoration:line-through;color:#73737a}
+.track-lane.track-hidden{background:#0b0b0d!important}
+.track-lane.track-hidden .timeline-clip{opacity:.22;filter:saturate(.15) brightness(.7)}
+.track-visibility-toggle{width:42px!important;min-width:42px;height:22px!important;display:flex;align-items:center;justify-content:center;gap:3px;padding:0 4px!important;border:1px solid #414148!important;border-radius:11px!important;background:#202024!important;color:#c6c6cb!important;transition:background .1s ease,border-color .1s ease,color .1s ease,opacity .1s ease}
+.track-visibility-toggle .track-eye{font-size:10px;line-height:1}
+.track-visibility-toggle .track-visibility-state{font-size:7px;font-weight:700;letter-spacing:.35px}
+.track-visibility-toggle.is-visible{border-color:#356a92!important;background:#1c3448!important;color:#bfe0ff!important}
+.track-visibility-toggle.is-visible:hover{background:#25465f!important;border-color:#4c8bbb!important}
+.track-visibility-toggle.is-hidden{border-color:#6d353d!important;background:#3c2025!important;color:#f0afb7!important}
+.track-visibility-toggle.is-hidden:hover{background:#512a31!important;border-color:#91505a!important}
 .track-control button[aria-pressed="true"]{background:#5b2630!important;color:#fff!important}
+.track-control .track-visibility-toggle[aria-pressed="true"]{background:#3c2025!important}
 
 .transition-badge{position:absolute;left:0;top:0;bottom:0;z-index:6;display:flex;align-items:center;justify-content:center;min-width:14px;max-width:45%;overflow:hidden;pointer-events:none;border-right:2px solid rgba(255,255,255,.9);background:repeating-linear-gradient(135deg,rgba(255,255,255,.38) 0 3px,rgba(0,0,0,.25) 3px 6px);box-shadow:inset -1px 0 rgba(0,0,0,.45)}
 .transition-badge:before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#fff;opacity:.88}

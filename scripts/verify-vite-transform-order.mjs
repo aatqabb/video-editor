@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import { normalizeLineEndingsPlugin } from './normalize-line-endings-plugin.js'
 import { stockWorkspacePlugin } from './vite-stock-workspace-plugin.js'
 import { timelineRefactorPlugin } from './vite-timeline-refactor-plugin.js'
+import { overlapReplacementPlugin } from './vite-overlap-replacement-plugin.js'
 import { playbackMediaPlugin } from './vite-playback-media-plugin.js'
 import { unlimitedTimelineImportPlugin } from './vite-unlimited-timeline-import-plugin.js'
 import { durationUiSyncPlugin } from './vite-duration-ui-sync-plugin.js'
@@ -9,6 +10,7 @@ import { programPlaybackSyncPlugin } from './vite-program-playback-sync-plugin.j
 import { premierePlayheadPlugin } from './vite-premiere-playhead-plugin.js'
 import { smoothTimelineDragPlugin } from './vite-smooth-timeline-drag-plugin.js'
 import { trackDeletePlugin } from './vite-track-delete-plugin.js'
+import { trackVisibilityUiPlugin } from './vite-track-visibility-ui-plugin.js'
 import { programTransformOverlayPlugin } from './vite-program-transform-overlay-plugin.js'
 
 let code = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
@@ -17,6 +19,7 @@ for (const plugin of [
   normalizeLineEndingsPlugin(),
   stockWorkspacePlugin(),
   timelineRefactorPlugin(),
+  overlapReplacementPlugin(),
   playbackMediaPlugin(),
   unlimitedTimelineImportPlugin(),
   durationUiSyncPlugin(),
@@ -24,6 +27,7 @@ for (const plugin of [
   premierePlayheadPlugin(),
   smoothTimelineDragPlugin(),
   trackDeletePlugin(),
+  trackVisibilityUiPlugin(),
   programTransformOverlayPlugin(),
 ]) {
   const result = plugin.transform?.(code, id)
@@ -53,6 +57,9 @@ const checks = [
   ['timeline receives setTracks for layer deletion', code.includes('setTracks={setTracks}')],
   ['track delete handler removes track clips and selection', code.includes('const deleteTrack = (trackId) =>') && code.includes("clip.trackId !== trackId") && code.includes('removedIds.has(id)')],
   ['each track exposes a delete layer control', code.includes('className="track-delete"') && code.includes('deleteTrack(track.id)')],
+  ['new clip inserts replace older overlaps', code.includes('const addedIds = next.filter((clip) => !currentIds.has(clip.id))') && code.includes('replaceTimelineOverlaps(next, addedIds)')],
+  ['video track show hide control is explicit', code.includes('track-visibility-toggle') && code.includes('track-visibility-state')],
+  ['hidden track state reaches controls and lanes', code.includes("track-control ${track.hidden ? 'track-hidden'") && code.includes("${track.hidden ? 'track-hidden' : ''}`}")],
 ]
 
 let failed = false
@@ -61,4 +68,4 @@ for (const [name, ok] of checks) {
   if (!ok) failed = true
 }
 if (failed) process.exit(1)
-console.log('\nVite transform order preserves timeline drag, robust window-level playhead dragging, imports, duration UI, removable layers, and Program Monitor live resize together.')
+console.log('\nVite transform order preserves overlap replacement, clearer visibility controls, timeline drag, playhead dragging, imports, duration UI, removable layers, and Program Monitor live resize together.')
