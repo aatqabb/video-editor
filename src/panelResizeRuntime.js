@@ -2,19 +2,41 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 
 export function installPanelResizeRuntime() {
   let cleanupDrag = null
+  let saved = null
 
   const endExistingDrag = () => {
     cleanupDrag?.()
     cleanupDrag = null
   }
 
+  const getLayout = (handle) => {
+    const shell = handle?.closest('.workspace-shell')
+    const upper = shell?.querySelector('.upper-workspace')
+    const timeline = shell?.querySelector('.timeline')
+    const leftPanel = upper?.querySelector('.left-panel')
+    const centerPanel = upper?.querySelector('.center-panel')
+    const rightPanel = upper?.querySelector('.right-panel')
+    const verticalHandles = upper ? [...upper.querySelectorAll('.resize-handle.vertical')] : []
+    const horizontalHandle = shell?.querySelector('.resize-handle.horizontal')
+    return { shell, upper, timeline, leftPanel, centerPanel, rightPanel, verticalHandles, horizontalHandle }
+  }
+
+  const applySaved = () => {
+    if (!saved) return
+    const horizontal = document.querySelector('.workspace-shell > .resize-handle.horizontal')
+    const { shell, upper, timeline, leftPanel, rightPanel } = getLayout(horizontal)
+    if (!shell || !upper || !timeline || !leftPanel || !rightPanel) return
+    if (saved.upperHeight != null) upper.style.setProperty('height', `${saved.upperHeight}px`, 'important')
+    if (saved.timelineHeight != null) timeline.style.setProperty('height', `${saved.timelineHeight}px`, 'important')
+    if (saved.leftWidth != null) leftPanel.style.setProperty('width', `${saved.leftWidth}px`, 'important')
+    if (saved.rightWidth != null) rightPanel.style.setProperty('width', `${saved.rightWidth}px`, 'important')
+  }
+
   const onPointerDown = (event) => {
     const handle = event.target.closest?.('.resize-handle')
     if (!handle || event.button !== 0) return
 
-    const shell = handle.closest('.workspace-shell')
-    const upper = shell?.querySelector('.upper-workspace')
-    const timeline = shell?.querySelector('.timeline')
+    const { shell, upper, timeline, leftPanel, centerPanel, rightPanel, verticalHandles } = getLayout(handle)
     if (!shell || !upper || !timeline) return
 
     event.preventDefault()
@@ -23,12 +45,18 @@ export function installPanelResizeRuntime() {
 
     const shellRect = shell.getBoundingClientRect()
     const upperRect = upper.getBoundingClientRect()
-    const verticalHandles = [...upper.querySelectorAll('.resize-handle.vertical')]
-    const leftPanel = upper.querySelector('.left-panel')
-    const rightPanel = upper.querySelector('.right-panel')
-    const centerPanel = upper.querySelector('.center-panel')
+    const handleRect = handle.getBoundingClientRect()
+    const horizontal = handle.classList.contains('horizontal')
+    const vertical = handle.classList.contains('vertical')
+    const verticalIndex = verticalHandles.indexOf(handle)
+    const minTimeline = 96
+    const minUpper = 120
+    const minSide = 145
+    const minCenter = 220
 
     document.body.classList.add('premiere-panel-resizing')
+    document.body.classList.toggle('premiere-panel-resizing-row', horizontal)
+    document.body.classList.toggle('premiere-panel-resizing-col', vertical)
 
     let latestX = event.clientX
     let latestY = event.clientY
@@ -37,34 +65,41 @@ export function installPanelResizeRuntime() {
     const apply = () => {
       raf = 0
 
-      if (handle.classList.contains('horizontal')) {
-        const minTimelinePx = 96
-        const minUpperPx = 120
-        const minTimelinePct = (minTimelinePx / Math.max(1, shellRect.height)) * 100
-        const maxTimelinePct = 100 - (minUpperPx / Math.max(1, shellRect.height)) * 100
-        const nextTimelinePct = clamp(((shellRect.bottom - latestY) / Math.max(1, shellRect.height)) * 100, minTimelinePct, maxTimelinePct)
-        shell.style.setProperty('--runtime-timeline-height', `${nextTimelinePct}%`)
-        shell.style.setProperty('--runtime-upper-height', `${100 - nextTimelinePct}%`)
+      if (horizontal) {
+        const availableHeight = Math.max(1, shellRect.height - handleRect.height)
+        const nextTimeline = clamp(shellRect.bottom - latestY - handleRect.height / 2, minTimeline, Math.max(minTimeline, availableHeight - minUpper))
+        const nextUpper = Math.max(minUpper, availableHeight - nextTimeline)
+
+        upper.style.setProperty('height', `${nextUpper}px`, 'important')
+        timeline.style.setProperty('height', `${nextTimeline}px`, 'important')
+        shell.style.removeProperty('--runtime-upper-height')
+        shell.style.removeProperty('--runtime-timeline-height')
+        saved = { ...(saved || {}), upperHeight: nextUpper, timelineHeight: nextTimeline }
         return
       }
 
-      if (!leftPanel || !rightPanel || !centerPanel || verticalHandles.length < 2) return
+      if (!vertical || !leftPanel || !centerPanel || !rightPanel || verticalHandles.length < 2) return
 
-      const minSidePx = 145
-      const minCenterPx = 220
-      const minSidePct = (minSidePx / Math.max(1, upperRect.width)) * 100
-      const minCenterPct = (minCenterPx / Math.max(1, upperRect.width)) * 100
-      const currentLeftPct = (leftPanel.getBoundingClientRect().width / Math.max(1, upperRect.width)) * 100
-      const currentRightPct = (rightPanel.getBoundingClientRect().width / Math.max(1, upperRect.width)) * 100
+      const firstHandleWidth = verticalHandles[0]?.getBoundingClientRect().width || 0
+      const secondHandleWidth = verticalHandles[1]?.getBoundingClientRect().width || 0
+      const availableWidth = Math.max(1, upperRect.width - firstHandleWidth - secondHandleWidth)
+      const currentLeft = leftPanel.getBoundingClientRect().width
+      const currentRight = rightPanel.getBoundingClientRect().width
 
-      if (handle === verticalHandles[0]) {
-        const pointerPct = ((latestX - upperRect.left) / Math.max(1, upperRect.width)) * 100
-        const maxLeftPct = 100 - currentRightPct - minCenterPct
-        shell.style.setProperty('--runtime-left-width', `${clamp(pointerPct, minSidePct, maxLeftPct)}%`)
-      } else if (handle === verticalHandles[1]) {
-        const pointerFromRightPct = ((upperRect.right - latestX) / Math.max(1, upperRect.width)) * 100
-        const maxRightPct = 100 - currentLeftPct - minCenterPct
-        shell.style.setProperty('--runtime-right-width', `${clamp(pointerFromRightPct, minSidePct, maxRightPct)}%`)
+      if (verticalIndex === 0) {
+        const desiredLeft = latestX - upperRect.left - firstHandleWidth / 2
+        const maxLeft = Math.max(minSide, availableWidth - currentRight - minCenter)
+        const nextLeft = clamp(desiredLeft, minSide, maxLeft)
+        leftPanel.style.setProperty('width', `${nextLeft}px`, 'important')
+        shell.style.removeProperty('--runtime-left-width')
+        saved = { ...(saved || {}), leftWidth: nextLeft }
+      } else if (verticalIndex === 1) {
+        const desiredRight = upperRect.right - latestX - secondHandleWidth / 2
+        const maxRight = Math.max(minSide, availableWidth - currentLeft - minCenter)
+        const nextRight = clamp(desiredRight, minSide, maxRight)
+        rightPanel.style.setProperty('width', `${nextRight}px`, 'important')
+        shell.style.removeProperty('--runtime-right-width')
+        saved = { ...(saved || {}), rightWidth: nextRight }
       }
     }
 
@@ -86,12 +121,9 @@ export function installPanelResizeRuntime() {
       window.removeEventListener('pointermove', onMove, true)
       window.removeEventListener('pointerup', finish, true)
       window.removeEventListener('pointercancel', finish, true)
-      document.body.classList.remove('premiere-panel-resizing')
+      document.body.classList.remove('premiere-panel-resizing', 'premiere-panel-resizing-row', 'premiere-panel-resizing-col')
       cleanupDrag = null
     }
-
-    document.body.classList.toggle('premiere-panel-resizing-row', handle.classList.contains('horizontal'))
-    document.body.classList.toggle('premiere-panel-resizing-col', handle.classList.contains('vertical'))
 
     window.addEventListener('pointermove', onMove, true)
     window.addEventListener('pointerup', finish, true)
@@ -108,8 +140,15 @@ export function installPanelResizeRuntime() {
 
   document.addEventListener('pointerdown', onPointerDown, true)
 
+  const observer = new MutationObserver(() => {
+    if (!saved) return
+    window.requestAnimationFrame(applySaved)
+  })
+  observer.observe(document.getElementById('root') || document.body, { childList: true, subtree: true })
+
   return () => {
     endExistingDrag()
+    observer.disconnect()
     document.removeEventListener('pointerdown', onPointerDown, true)
   }
 }
