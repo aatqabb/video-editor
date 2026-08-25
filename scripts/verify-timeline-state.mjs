@@ -8,9 +8,10 @@ const tracks = [
 ]
 const addedVideo = addTimelineTrack(tracks, 'video')
 assert.equal(addedVideo.track.id, 'V3')
-assert.deepEqual(addedVideo.tracks.map((track) => track.id), ['V2', 'V1', 'V3', 'A1'])
+assert.deepEqual(addedVideo.tracks.map((track) => track.id), ['V3', 'V2', 'V1', 'A1'])
 const addedAudio = addTimelineTrack(addedVideo.tracks, 'audio')
 assert.equal(addedAudio.track.id, 'A2')
+assert.deepEqual(addedAudio.tracks.map((track) => track.id), ['V3', 'V2', 'V1', 'A1', 'A2'])
 
 const clips = [
   { id: 'a', type: 'video', trackId: 'V2', start: 2, duration: 3 },

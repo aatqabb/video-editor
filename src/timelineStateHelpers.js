@@ -7,9 +7,7 @@ export function addTimelineTrack(tracks, type) {
   const id = `${prefix}${Math.max(0, ...numbers) + 1}`
   const track = { id, type, locked: false, hidden: false, muted: false, solo: false }
   if (type === 'video') {
-    const firstAudio = tracks.findIndex((item) => item.type === 'audio')
-    if (firstAudio === -1) return { tracks: [track, ...tracks], track }
-    return { tracks: [...tracks.slice(0, firstAudio), track, ...tracks.slice(firstAudio)], track }
+    return { tracks: [track, ...tracks], track }
   }
   return { tracks: [...tracks, track], track }
 }
