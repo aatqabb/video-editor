@@ -1,0 +1,5 @@
+.timeline-clip.audio .premiere-waveform{position:absolute;left:2px;right:2px;bottom:2px;height:48%;display:flex;align-items:center;gap:1px;overflow:hidden;pointer-events:none;z-index:1;border-top:1px solid rgba(0,0,0,.22)}
+.timeline-clip.audio .premiere-waveform:before{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.34);transform:translateY(-.5px)}
+.timeline-clip.audio .premiere-waveform i{display:block;flex:1 1 1px;min-width:1px;max-width:2px;height:calc(100% * var(--wave-peak));background:rgba(19,58,13,.82);border-radius:0;opacity:.98}
+.timeline-clip.audio.selected .premiere-waveform i{background:rgba(12,43,9,.92)}
+.timeline-clip.audio .clip-name{z-index:3}
