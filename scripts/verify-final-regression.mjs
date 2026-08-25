@@ -8,6 +8,7 @@ const checks = [
   ['Vite transform order', 'node', ['scripts/verify-vite-transform-order.mjs']],
   ['GPU contract', 'node', ['scripts/verify-gpu-contract.mjs']],
   ['Responsiveness contract', 'node', ['scripts/verify-responsiveness-contract.mjs']],
+  ['Premiere panel resize contract', 'node', ['scripts/verify-premiere-panel-resize-contract.mjs']],
   ['Program monitor live resize contract', 'node', ['scripts/verify-program-transform-contract.mjs']],
   ['Export contract', 'node', ['scripts/verify-export-contract.mjs']],
   ['Voice-over recording contract', 'node', ['scripts/verify-voiceover-contract.mjs']],
