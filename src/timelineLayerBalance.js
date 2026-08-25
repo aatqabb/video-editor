@@ -8,6 +8,13 @@ export function installTimelineLayerBalance() {
     rafId = requestAnimationFrame(applyBalance)
   }
 
+  const markBoundaryRows = (rows) => {
+    rows.forEach((row) => row.classList.remove('timeline-stack-first', 'timeline-stack-last'))
+    if (!rows.length) return
+    rows[0].classList.add('timeline-stack-first')
+    rows[rows.length - 1].classList.add('timeline-stack-last')
+  }
+
   const applyBalance = () => {
     const timelineBody = document.querySelector('.timeline-body')
     const controls = document.querySelector('.track-controls')
@@ -25,6 +32,9 @@ export function installTimelineLayerBalance() {
     const availableForTracks = Math.max(0, bodyHeight - rulerHeight)
     const freeSpace = Math.max(0, availableForTracks - tracksHeight)
     const offset = Math.floor(freeSpace / 2)
+
+    markBoundaryRows(controlRows)
+    markBoundaryRows(laneRows)
 
     const px = `${offset}px`
     controls.style.setProperty('--timeline-layer-stack-offset', px)
