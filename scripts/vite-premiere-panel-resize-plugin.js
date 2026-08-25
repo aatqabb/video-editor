@@ -53,6 +53,7 @@ export function premierePanelResizePlugin() {
       const newResizeBlock = `  const startVerticalResize = (side, event) => {
     if (event.button !== 0) return
     event.preventDefault()
+    event.stopPropagation()
     const workspace = event.currentTarget.closest('.upper-workspace')
     if (!workspace) return
     const rect = workspace.getBoundingClientRect()
@@ -81,7 +82,10 @@ export function premierePanelResizePlugin() {
       if (!frame) frame = window.requestAnimationFrame(apply)
     }
     const cleanup = () => {
-      if (frame) window.cancelAnimationFrame(frame)
+      if (frame) {
+        window.cancelAnimationFrame(frame)
+        apply()
+      }
       window.removeEventListener('pointermove', onMove, true)
       window.removeEventListener('pointerup', cleanup, true)
       window.removeEventListener('pointercancel', cleanup, true)
@@ -95,6 +99,7 @@ export function premierePanelResizePlugin() {
   const startTimelineResize = (event) => {
     if (event.button !== 0) return
     event.preventDefault()
+    event.stopPropagation()
     const shell = event.currentTarget.closest('.workspace-shell')
     if (!shell) return
     const rect = shell.getBoundingClientRect()
@@ -114,7 +119,10 @@ export function premierePanelResizePlugin() {
       if (!frame) frame = window.requestAnimationFrame(apply)
     }
     const cleanup = () => {
-      if (frame) window.cancelAnimationFrame(frame)
+      if (frame) {
+        window.cancelAnimationFrame(frame)
+        apply()
+      }
       window.removeEventListener('pointermove', onMove, true)
       window.removeEventListener('pointerup', cleanup, true)
       window.removeEventListener('pointercancel', cleanup, true)
@@ -131,6 +139,17 @@ export function premierePanelResizePlugin() {
         .replace("onMouseDown={(event) => startVerticalResize('left', event)}", "onPointerDown={(event) => startVerticalResize('left', event)}")
         .replace("onMouseDown={(event) => startVerticalResize('right', event)}", "onPointerDown={(event) => startVerticalResize('right', event)}")
         .replace('onMouseDown={startTimelineResize}', 'onPointerDown={startTimelineResize}')
+        .replace(
+          '<main className="workspace-shell">',
+          '<main className="workspace-shell" style={{ gridTemplateRows: `minmax(120px, ${100 - timelineHeight}fr) 10px minmax(96px, ${timelineHeight}fr)` }}>',
+        )
+        .replace(
+          '<section className="upper-workspace" style={{ height: `${100 - timelineHeight}%` }}>',
+          '<section className="upper-workspace" style={{ gridTemplateColumns: `minmax(145px, ${leftWidth}fr) 10px minmax(220px, ${Math.max(1, 100 - leftWidth - rightWidth)}fr) 10px minmax(145px, ${rightWidth}fr)` }}>',
+        )
+
+      if (!next.includes('gridTemplateRows: `minmax(120px,')) throw new Error('Premiere panel resize could not bind timeline state to grid rows')
+      if (!next.includes('gridTemplateColumns: `minmax(145px,')) throw new Error('Premiere panel resize could not bind panel state to grid columns')
 
       return next === code ? null : { code: next, map: null }
     },
