@@ -21,8 +21,9 @@ const checks = [
   ['horizontal drag writes grid rows directly', /gridTemplateRows/, runtime],
   ['vertical drag writes grid columns directly', /gridTemplateColumns/, runtime],
   ['drag cursor stays locked during resize', /premiere-panel-resizing-col[\s\S]*premiere-panel-resizing-row/, runtime],
-  ['splitter hover feedback exists', /resize-handle\.vertical:hover::after[\s\S]*resize-handle\.horizontal:hover::after/, css],
-  ['panel content remains constrained to panes', /\.panel-body\{[^}]*min-width:0[^}]*min-height:0/, css],
+  ['splitter hover feedback exists', /\.resize-handle:hover::after\{background:#2f8cff\}/, css],
+  ['panel content remains constrained to panes', /\.panel-body,\.center-body,\.monitor,\.monitor-screen\{min-width:0;min-height:0\}/, css],
+  ['panel body scroll stays inside pane', /\.panel-body\{overflow:auto\}/, css],
 ]
 
 let failed = false
