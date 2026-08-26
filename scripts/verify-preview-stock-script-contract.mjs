@@ -6,17 +6,17 @@ const scriptWorkspace = fs.readFileSync(new URL('../src/ScriptWorkspace.jsx', im
 const vite = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf8')
 
 const checks = [
-  ['preview hides stale video while seeking', previewPlugin.includes("const onSeeking = () => setFrameReady(false)")),
-  ['preview reveals only synced frame after seek', previewPlugin.includes('const onSeeked = () =>') && previewPlugin.includes('setFrameReady(true)')),
-  ['paused preview uses tight playhead sync', previewPlugin.includes("playing ? .12 : .015")),
-  ['preview stability plugin is wired after playback sync', /programPlaybackSyncPlugin\(\), programPreviewStabilityPlugin\(\)/.test(vite)),
-  ['stock requests expanded Pexels page size', stockApi.includes('per_page=80')),
-  ['stock requests expanded Pixabay page size', stockApi.includes('per_page=200')),
-  ['stock requests expanded Unsplash page size', stockApi.includes('per_page=30')),
-  ['stock orders all videos before images', /mediaType !== 'image'[\s\S]*mediaType === 'image'/.test(stockApi)),
-  ['script edits debounce into automatic split', scriptWorkspace.includes('autoSplitTimerRef') && scriptWorkspace.includes('splitIntoLines(value, true)')),
-  ['script automatic split starts line searches', scriptWorkspace.includes('void searchLinesSequentially(nextLines, true)')),
-  ['script preview handles stock images', scriptWorkspace.includes("preview.mediaType === 'image'")),
+  ['preview hides stale video while seeking', previewPlugin.includes("const onSeeking = () => setFrameReady(false)")],
+  ['preview reveals only synced frame after seek', previewPlugin.includes('const onSeeked = () =>') && previewPlugin.includes('setFrameReady(true)')],
+  ['paused preview uses tight playhead sync', previewPlugin.includes('playing ? .12 : .015')],
+  ['preview stability plugin is wired after playback sync', /programPlaybackSyncPlugin\(\), programPreviewStabilityPlugin\(\)/.test(vite)],
+  ['stock requests expanded Pexels page size', stockApi.includes('per_page=80')],
+  ['stock requests expanded Pixabay page size', stockApi.includes('per_page=200')],
+  ['stock requests expanded Unsplash page size', stockApi.includes('per_page=30')],
+  ['stock orders all videos before images', /mediaType !== 'image'[\s\S]*mediaType === 'image'/.test(stockApi)],
+  ['script edits debounce into automatic split', scriptWorkspace.includes('autoSplitTimerRef') && scriptWorkspace.includes('splitIntoLines(value, true)')],
+  ['script automatic split starts line searches', scriptWorkspace.includes('void searchLinesSequentially(nextLines, true)')],
+  ['script preview handles stock images', scriptWorkspace.includes("preview.mediaType === 'image'")],
 ]
 
 let failed = false
