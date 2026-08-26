@@ -7,8 +7,10 @@ const vite = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf
 
 const checks = [
   ['preview hides stale video while seeking', previewPlugin.includes("const onSeeking = () => setFrameReady(false)")],
-  ['preview reveals only synced frame after seek', previewPlugin.includes('const onSeeked = () =>') && previewPlugin.includes('setFrameReady(true)')],
-  ['paused preview uses tight playhead sync', previewPlugin.includes('playing ? .12 : .015')],
+  ['preview seek completion rechecks expected playhead frame', previewPlugin.includes('expectedTimeRef.current') && previewPlugin.includes("distance > (playing ? .4 : .04)")),
+  ['preview waits for decoded video frame before reveal', previewPlugin.includes('requestVideoFrameCallback') && previewPlugin.includes('revealDecodedFrame')],
+  ['paused preview uses tight playhead sync while playback avoids seek thrash', previewPlugin.includes('playing ? .4 : .015')],
+  ['preview cancels stale frame reveal callbacks', previewPlugin.includes('frameRequestRef.current += 1')],
   ['preview stability plugin is wired after playback sync', /programPlaybackSyncPlugin\(\), programPreviewStabilityPlugin\(\)/.test(vite)],
   ['stock requests expanded Pexels page size', stockApi.includes('per_page=80')],
   ['stock requests expanded Pixabay page size', stockApi.includes('per_page=200')],
@@ -16,6 +18,7 @@ const checks = [
   ['stock orders all videos before images', /mediaType !== 'image'[\s\S]*mediaType === 'image'/.test(stockApi)],
   ['script edits debounce into automatic split', scriptWorkspace.includes('autoSplitTimerRef') && scriptWorkspace.includes('splitIntoLines(value, true)')],
   ['script automatic split starts line searches', scriptWorkspace.includes('void searchLinesSequentially(nextLines, true)')],
+  ['script auto-search defaults to all configured providers', scriptWorkspace.includes("const [provider, setProvider] = useState('All')")),
   ['script preview handles stock images', scriptWorkspace.includes("preview.mediaType === 'image'")],
 ]
 
@@ -25,4 +28,4 @@ for (const [name, ok] of checks) {
   if (!ok) failed = true
 }
 if (failed) process.exit(1)
-console.log('PASS preview sync, maximum stock ordering, and script auto-search contract verified.')
+console.log('PASS decoded-frame preview sync, maximum stock ordering, and script auto-search contract verified.')
