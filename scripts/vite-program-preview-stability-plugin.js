@@ -12,72 +12,54 @@ export function programPreviewStabilityPlugin() {
       const replacement = `function ProgramVideoMedia({ clip, playing, playhead, style }) {
   const mediaRef = useRef(null)
   const expectedTimeRef = useRef(0)
-  const frameRequestRef = useRef(0)
   const [failed, setFailed] = useState(false)
   const [frameReady, setFrameReady] = useState(false)
   const source = clip.remoteUrl || clip.localUrl || clip.originalUrl
-  const desiredTime = Math.max(0, Number(clip.sourceIn) || 0) + Math.max(0, playhead - (Number(clip.start) || 0)) * Math.max(.1, Number(clip.video?.speed) || 1)
+  const speed = Math.max(.1, Number(clip.video?.speed) || 1)
+  const desiredTime = Math.max(0, Number(clip.sourceIn) || 0) + Math.max(0, playhead - (Number(clip.start) || 0)) * speed
   expectedTimeRef.current = desiredTime
 
   useEffect(() => {
     setFailed(false)
     setFrameReady(false)
-    frameRequestRef.current += 1
   }, [source, clip.id])
 
-  // Media event wiring is intentionally NOT recreated for every playhead tick. During
-  // playback the <video> element owns continuous frame progression; the timeline clock is
-  // only used to correct meaningful drift. Rebuilding this effect on every playhead update
-  // used to cancel requestVideoFrameCallback before it could reveal the next decoded frame,
-  // leaving Program Monitor visually stuck on the poster/last frame.
+  // Keep one stable media lifecycle per clip/source/play state. Once any decoded frame is
+  // available the video remains visible while seeking; hiding it again on every seeking
+  // event allowed the poster/fallback to sit over the real video and look permanently stuck.
   useEffect(() => {
     const element = mediaRef.current
     if (!element || failed || clip.kind === 'image') return
     let cancelled = false
 
-    const revealDecodedFrame = () => {
-      const requestId = frameRequestRef.current + 1
-      frameRequestRef.current = requestId
-      const reveal = () => {
-        if (cancelled || frameRequestRef.current !== requestId) return
-        if (element.readyState < 2) return
-        if (playing) {
-          setFrameReady(true)
-          return
-        }
-        const distance = Math.abs((Number(element.currentTime) || 0) - expectedTimeRef.current)
-        if (distance <= .06) setFrameReady(true)
-      }
-      if (typeof element.requestVideoFrameCallback === 'function') element.requestVideoFrameCallback(() => reveal())
-      else window.setTimeout(reveal, 0)
+    const markReady = () => {
+      if (!cancelled && element.readyState >= 2) setFrameReady(true)
     }
-
     const syncInitialPosition = () => {
       if (cancelled || element.readyState < 1) return
+      element.playbackRate = speed
+      element.defaultPlaybackRate = speed
       const target = Math.max(0, expectedTimeRef.current)
       const distance = Math.abs((Number(element.currentTime) || 0) - target)
-      const tolerance = playing ? .65 : .015
-      if (distance > tolerance) {
-        setFrameReady(false)
-        try { element.currentTime = target } catch { /* metadata may still be settling */ }
-      } else if (element.readyState >= 2) {
-        revealDecodedFrame()
+      if (distance > (playing ? .65 : .015)) {
+        try { element.currentTime = target } catch { /* metadata can still be settling */ }
+      } else {
+        markReady()
       }
       if (playing) element.play?.().catch?.(() => {})
       else element.pause?.()
     }
 
     const onMetadata = () => syncInitialPosition()
-    const onLoadedData = () => revealDecodedFrame()
+    const onLoadedData = () => markReady()
     const onCanPlay = () => {
-      revealDecodedFrame()
+      markReady()
       if (playing) element.play?.().catch?.(() => {})
     }
-    const onPlaying = () => revealDecodedFrame()
-    const onSeeking = () => setFrameReady(false)
+    const onPlaying = () => markReady()
+    const onTimeUpdate = () => markReady()
     const onSeeked = () => {
-      if (cancelled) return
-      revealDecodedFrame()
+      markReady()
       if (playing) element.play?.().catch?.(() => {})
       else element.pause?.()
     }
@@ -86,47 +68,45 @@ export function programPreviewStabilityPlugin() {
     element.addEventListener('loadeddata', onLoadedData)
     element.addEventListener('canplay', onCanPlay)
     element.addEventListener('playing', onPlaying)
-    element.addEventListener('seeking', onSeeking)
+    element.addEventListener('timeupdate', onTimeUpdate)
     element.addEventListener('seeked', onSeeked)
     syncInitialPosition()
     return () => {
       cancelled = true
-      frameRequestRef.current += 1
       element.removeEventListener('loadedmetadata', onMetadata)
       element.removeEventListener('loadeddata', onLoadedData)
       element.removeEventListener('canplay', onCanPlay)
       element.removeEventListener('playing', onPlaying)
-      element.removeEventListener('seeking', onSeeking)
+      element.removeEventListener('timeupdate', onTimeUpdate)
       element.removeEventListener('seeked', onSeeked)
     }
-  }, [clip.id, source, playing, failed])
+  }, [clip.id, source, playing, failed, speed])
 
-  // Follow explicit playhead moves without continuously seeking during ordinary playback.
-  // Paused scrubbing stays frame-accurate; while playing we only correct large drift or
-  // restart a paused/stalled media element, allowing native video decoding to stay smooth.
+  // The timeline remains master clock. Paused scrubbing seeks tightly to the requested frame;
+  // normal playback lets the browser decode continuously and only corrects meaningful drift.
   useEffect(() => {
     const element = mediaRef.current
     if (!element || failed || clip.kind === 'image' || element.readyState < 1) return
+    element.playbackRate = speed
     const target = Math.max(0, desiredTime)
     const distance = Math.abs((Number(element.currentTime) || 0) - target)
 
     if (playing) {
       if (distance > .75) {
-        setFrameReady(false)
-        try { element.currentTime = target } catch { /* keep current decoded frame */ }
+        try { element.currentTime = target } catch { /* keep current decoded frame visible */ }
       }
       if (element.paused) element.play?.().catch?.(() => {})
+      if (element.readyState >= 2) setFrameReady(true)
       return
     }
 
     element.pause?.()
     if (distance > .015) {
-      setFrameReady(false)
       try { element.currentTime = target } catch { /* metadata may not be ready yet */ }
     } else if (element.readyState >= 2) {
       setFrameReady(true)
     }
-  }, [desiredTime, playing, clip.id, source, failed])
+  }, [desiredTime, playing, clip.id, source, failed, speed])
 
   if (!source) {
     if (clip.thumbnail) return <img src={clip.thumbnail} alt="" style={{ objectFit: style.objectFit }} />
@@ -139,7 +119,7 @@ export function programPreviewStabilityPlugin() {
   }
 
   return <div className="program-media-stack">
-    {clip.thumbnail && <img className="program-media-fallback" src={clip.thumbnail} alt="" style={{ objectFit: style.objectFit, opacity: frameReady ? 0 : 1 }} />}
+    {clip.thumbnail && !frameReady && <img className="program-media-fallback" src={clip.thumbnail} alt="" style={{ objectFit: style.objectFit }} />}
     <video
       key={source}
       ref={mediaRef}
@@ -148,6 +128,10 @@ export function programPreviewStabilityPlugin() {
       muted
       playsInline
       preload="auto"
+      onLoadedData={() => setFrameReady(true)}
+      onCanPlay={() => setFrameReady(true)}
+      onPlaying={() => setFrameReady(true)}
+      onSeeked={() => setFrameReady(true)}
       onError={() => setFailed(true)}
       style={{ objectFit: style.objectFit, opacity: frameReady ? 1 : 0 }}
     />
