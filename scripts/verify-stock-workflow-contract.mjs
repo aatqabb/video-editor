@@ -7,7 +7,7 @@ const api = fs.readFileSync(new URL('../src/stockApi.js', import.meta.url), 'utf
 const requirements = [
   ['full script input', /Paste full script here/, scriptWorkspace],
   ['auto split plus search control', /Split \+ Auto Search/, scriptWorkspace],
-  ['script change schedules automatic split and search', /autoSplitTimerRef/ && /splitIntoLines\(value, true\)/, scriptWorkspace],
+  ['script change schedules automatic split and search', /autoSplitTimerRef[\s\S]*splitIntoLines\(value, true\)/, scriptWorkspace],
   ['editable per-line query', /placeholder="Editable stock search query"/, scriptWorkspace],
   ['standalone functional Stock workspace', /searchStockVideos\(clean, provider\)/, stockWorkspace],
   ['Pexels provider option', /<option>Pexels<\/option>/, stockWorkspace],
@@ -35,7 +35,7 @@ const apiRequirements = [
   ['Pexels maximum page size requested', /per_page=80/, api],
   ['Pixabay maximum page size requested', /per_page=200/, api],
   ['Unsplash maximum page size requested', /per_page=30/, api],
-  ['video results are ordered before image results', /orderVideosThenImages/ && /mediaType !== 'image'[\s\S]*mediaType === 'image'/, api],
+  ['video results are ordered before image results', /orderVideosThenImages[\s\S]*mediaType !== 'image'[\s\S]*mediaType === 'image'/, api],
   ['searchStockVideos export', /export async function searchStockVideos/, api],
 ]
 
