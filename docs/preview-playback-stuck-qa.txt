@@ -1,0 +1,6 @@
+Visual QA after merge:
+1. Put a moving video clip under the playhead.
+2. Press play and watch Program Monitor for at least 8 seconds.
+3. Confirm the image changes continuously rather than staying on one frame while the timeline playhead moves.
+4. Pause and scrub to several positions; each requested frame should update without black flashes.
+5. Resume playback; native video playback should continue smoothly from the current playhead position.
