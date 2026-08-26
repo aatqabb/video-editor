@@ -1,0 +1,35 @@
+.stock-only-workspace .stock-results-grid{
+  flex:1;
+  min-height:0;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  align-content:start;
+  gap:8px;
+  margin-top:0;
+  padding:8px;
+  overflow-x:hidden;
+  overflow-y:auto;
+  scrollbar-gutter:stable;
+}
+
+.stock-only-workspace .stock-results-grid .stock-result-card{
+  width:auto;
+  min-width:0;
+  flex:none;
+}
+
+.stock-only-workspace .stock-results-grid .stock-thumb-button{
+  height:auto;
+  aspect-ratio:16/9;
+}
+
+.stock-only-workspace .stock-results-grid .stock-source-link{
+  display:block;
+}
+
+@media(max-width:1100px){
+  .stock-only-workspace .stock-results-grid{
+    grid-template-columns:repeat(auto-fill,minmax(132px,1fr));
+    gap:7px;
+  }
+}
