@@ -8,7 +8,7 @@ const vite = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf
 const checks = [
   ['preview hides stale video while seeking', previewPlugin.includes("const onSeeking = () => setFrameReady(false)")],
   ['preview event wiring does not rebuild on every playhead tick', previewPlugin.includes("}, [clip.id, source, playing, failed])")],
-  ['playing preview reveals decoded frames without exact playhead tolerance', previewPlugin.includes("if (playing) {\n          setFrameReady(true)")],
+  ['playing preview reveals decoded frames without exact playhead tolerance', /if \(playing\) \{\s*setFrameReady\(true\)/.test(previewPlugin)],
   ['playing preview only corrects meaningful drift', previewPlugin.includes('if (distance > .75)')],
   ['playing preview restarts a paused media element', previewPlugin.includes("if (element.paused) element.play?.().catch?.(() => {})")],
   ['paused preview keeps tight frame-accurate seek tolerance', previewPlugin.includes('if (distance > .015)')],
