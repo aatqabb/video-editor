@@ -11,10 +11,13 @@ export function programPreviewStabilityPlugin() {
 
       const replacement = `function ProgramVideoMedia({ clip, playing, playhead, style }) {
   const mediaRef = useRef(null)
+  const expectedTimeRef = useRef(0)
+  const frameRequestRef = useRef(0)
   const [failed, setFailed] = useState(false)
   const [frameReady, setFrameReady] = useState(false)
   const source = clip.remoteUrl || clip.localUrl || clip.originalUrl
   const desiredTime = Math.max(0, Number(clip.sourceIn) || 0) + Math.max(0, playhead - (Number(clip.start) || 0)) * Math.max(.1, Number(clip.video?.speed) || 1)
+  expectedTimeRef.current = desiredTime
 
   useEffect(() => {
     setFailed(false)
@@ -26,15 +29,29 @@ export function programPreviewStabilityPlugin() {
     if (!element || failed || clip.kind === 'image') return
     let cancelled = false
 
+    const revealDecodedFrame = () => {
+      const requestId = frameRequestRef.current + 1
+      frameRequestRef.current = requestId
+      const reveal = () => {
+        if (cancelled || frameRequestRef.current !== requestId) return
+        const expected = expectedTimeRef.current
+        const tolerance = playing ? .24 : .04
+        if (element.readyState >= 2 && Math.abs((Number(element.currentTime) || 0) - expected) <= tolerance) setFrameReady(true)
+      }
+      if (typeof element.requestVideoFrameCallback === 'function') element.requestVideoFrameCallback(() => reveal())
+      else window.setTimeout(reveal, 0)
+    }
+
     const sync = () => {
       if (cancelled || !element) return
-      const target = Math.max(0, desiredTime)
+      const target = Math.max(0, expectedTimeRef.current)
       const distance = Math.abs((Number(element.currentTime) || 0) - target)
-      if (distance > (playing ? .12 : .015)) {
+      const seekTolerance = playing ? .4 : .015
+      if (distance > seekTolerance) {
         setFrameReady(false)
         try { element.currentTime = target } catch { return }
       } else if (element.readyState >= 2) {
-        setFrameReady(true)
+        revealDecodedFrame()
       }
       if (playing) element.play?.().catch?.(() => {})
       else element.pause?.()
@@ -44,14 +61,17 @@ export function programPreviewStabilityPlugin() {
     const onSeeking = () => setFrameReady(false)
     const onSeeked = () => {
       if (cancelled) return
-      setFrameReady(true)
+      const expected = expectedTimeRef.current
+      const distance = Math.abs((Number(element.currentTime) || 0) - expected)
+      if (distance > (playing ? .4 : .04)) {
+        sync()
+        return
+      }
+      revealDecodedFrame()
       if (playing) element.play?.().catch?.(() => {})
       else element.pause?.()
     }
-    const onLoadedData = () => {
-      if (Math.abs((Number(element.currentTime) || 0) - desiredTime) <= .03) setFrameReady(true)
-      else sync()
-    }
+    const onLoadedData = () => sync()
 
     element.addEventListener('loadedmetadata', onMetadata)
     element.addEventListener('loadeddata', onLoadedData)
@@ -60,6 +80,7 @@ export function programPreviewStabilityPlugin() {
     sync()
     return () => {
       cancelled = true
+      frameRequestRef.current += 1
       element.removeEventListener('loadedmetadata', onMetadata)
       element.removeEventListener('loadeddata', onLoadedData)
       element.removeEventListener('seeking', onSeeking)
