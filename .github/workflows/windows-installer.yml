@@ -74,6 +74,17 @@ jobs:
 
           Write-Host "Installing $($installer.FullName) silently on fresh Windows runner"
           $install = Start-Process -FilePath $installer.FullName -ArgumentList '/S' -Wait -PassThru
+
+          # Windows hosted runners occasionally terminate NSIS itself with 0xC0000005
+          # before it reaches application code. Retry that exact native crash once in a
+          # clean explicit directory; every other installer error remains a hard failure.
+          if ($install.ExitCode -eq -1073741819) {
+            Write-Warning 'NSIS hit transient 0xC0000005; retrying once in an isolated install directory.'
+            Start-Sleep -Seconds 2
+            $retryDir = Join-Path $env:RUNNER_TEMP 'VideoEditorSmokeInstall'
+            if (Test-Path $retryDir) { Remove-Item -Recurse -Force $retryDir }
+            $install = Start-Process -FilePath $installer.FullName -ArgumentList @('/S', "/D=$retryDir") -Wait -PassThru
+          }
           if ($install.ExitCode -ne 0) { throw "Silent installer exited with code $($install.ExitCode)" }
 
           $desktopShortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Video Editor.lnk'
