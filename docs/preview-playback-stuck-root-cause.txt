@@ -1,0 +1,3 @@
+Root cause: ProgramVideoMedia's media event effect depended on desiredTime, so normal playhead updates repeatedly tore down the effect and invalidated requestVideoFrameCallback work before decoded frames could be revealed. The video element could continue internally while the visible Program Monitor stayed on its fallback/poster frame.
+
+Fix: keep media event wiring stable per clip/source/play state; separate playhead-follow logic; allow native video playback to advance frames continuously; only seek while playing when drift is large; preserve tight paused scrubbing.

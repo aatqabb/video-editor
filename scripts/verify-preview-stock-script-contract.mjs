@@ -7,9 +7,12 @@ const vite = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf
 
 const checks = [
   ['preview hides stale video while seeking', previewPlugin.includes("const onSeeking = () => setFrameReady(false)")],
-  ['preview seek completion rechecks expected playhead frame', previewPlugin.includes('expectedTimeRef.current') && previewPlugin.includes("distance > (playing ? .4 : .04)")],
+  ['preview event wiring does not rebuild on every playhead tick', previewPlugin.includes("}, [clip.id, source, playing, failed])")],
+  ['playing preview reveals decoded frames without exact playhead tolerance', /if \(playing\) \{\s*setFrameReady\(true\)/.test(previewPlugin)],
+  ['playing preview only corrects meaningful drift', previewPlugin.includes('if (distance > .75)')],
+  ['playing preview restarts a paused media element', previewPlugin.includes("if (element.paused) element.play?.().catch?.(() => {})")],
+  ['paused preview keeps tight frame-accurate seek tolerance', previewPlugin.includes('if (distance > .015)')],
   ['preview waits for decoded video frame before reveal', previewPlugin.includes('requestVideoFrameCallback') && previewPlugin.includes('revealDecodedFrame')],
-  ['paused preview uses tight playhead sync while playback avoids seek thrash', previewPlugin.includes('playing ? .4 : .015')],
   ['preview cancels stale frame reveal callbacks', previewPlugin.includes('frameRequestRef.current += 1')],
   ['preview stability plugin is wired after playback sync', /programPlaybackSyncPlugin\(\), programPreviewStabilityPlugin\(\)/.test(vite)],
   ['stock requests expanded Pexels page size', stockApi.includes('per_page=80')],
@@ -28,4 +31,4 @@ for (const [name, ok] of checks) {
   if (!ok) failed = true
 }
 if (failed) process.exit(1)
-console.log('PASS decoded-frame preview sync, maximum stock ordering, and script auto-search contract verified.')
+console.log('PASS continuously advancing Program Monitor preview, maximum stock ordering, and script auto-search contract verified.')
