@@ -25,7 +25,7 @@ Animals.
 Stars.`
 
   const [script, setScript] = useState(initialScript)
-  const [provider, setProvider] = useState('Both')
+  const [provider, setProvider] = useState('All')
   const [lines, setLines] = useState(() => splitScriptText(initialScript).map(makeLine))
   const [searchState, setSearchState] = useState({})
   const [preview, setPreview] = useState(null)
@@ -147,8 +147,8 @@ Stars.`
       <div className="script-toolbar">
         <strong>SCRIPT → STOCK</strong>
         <select value={provider} onChange={(event) => setProvider(event.target.value)}>
-          <option>Both</option>
           <option>All</option>
+          <option>Both</option>
           <option>Pexels</option>
           <option>Pixabay</option>
           <option>Coverr</option>
