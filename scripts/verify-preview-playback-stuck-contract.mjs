@@ -8,10 +8,10 @@ const checks = [
   ['native playback is restarted if media is paused', plugin.includes("if (element.paused) element.play?.().catch?.(() => {})")],
   ['ordinary playback is not continuously seeked', plugin.includes('if (distance > .75)')],
   ['paused scrub remains frame accurate', plugin.includes('if (distance > .015)')],
-  ['decoded frames become visible directly on media events', plugin.includes("const markReady = () =>") && plugin.includes("element.addEventListener('timeupdate', onTimeUpdate)")),
-  ['seeking no longer hides an already decoded frame', !plugin.includes("const onSeeking = () => setFrameReady(false)")),
-  ['video playback rate follows clip speed', plugin.includes('element.playbackRate = speed')),
-  ['fallback is removed once a frame is ready', plugin.includes('clip.thumbnail && !frameReady')),
+  ['decoded frames become visible directly on media events', plugin.includes('const markReady = () =>') && plugin.includes("element.addEventListener('timeupdate', onTimeUpdate)")],
+  ['seeking no longer hides an already decoded frame', !plugin.includes('const onSeeking = () => setFrameReady(false)')],
+  ['video playback rate follows clip speed', plugin.includes('element.playbackRate = speed')],
+  ['fallback is removed once a frame is ready', plugin.includes('clip.thumbnail && !frameReady')],
 ]
 
 let failed = false
