@@ -72,8 +72,8 @@ app.whenReady().then(async () => {
       await waitTask()
       const duplicatedCount = document.querySelectorAll('.timeline-clip').length
       const duplicateVisible = [...document.querySelectorAll('.timeline-clip')].some((node) => / copy$/i.test(node.querySelector('.clip-name')?.textContent?.trim() || node.textContent?.trim() || ''))
-      if (duplicatedCount !== initialCount) throw new Error(\`Overlap-replacing duplicate failed offline: expected \${initialCount}, got \${duplicatedCount}\`)
-      if (!duplicateVisible) throw new Error('Overlap-replacing duplicate failed offline: replacement copy was not rendered')
+      if (duplicatedCount !== initialCount + 1) throw new Error(\`Partial-overlap duplicate failed offline: expected \${initialCount + 1}, got \${duplicatedCount}\`)
+      if (!duplicateVisible) throw new Error('Partial-overlap duplicate failed offline: duplicate copy was not rendered')
 
       key('z', { ctrlKey: true })
       await waitTask()
@@ -130,7 +130,7 @@ app.whenReady().then(async () => {
       }
     })()`)
 
-    console.log(`Offline editing smoke passed: ${result.initialCount} seeded clips, overlap-replacing duplicate/delete/undo verified, playhead click moved ${result.playheadClickPixels}px and drag committed ${result.playheadDragPixels}px, ${blockedRequests} network request(s) blocked.`)
+    console.log(`Offline editing smoke passed: ${result.initialCount} seeded clips, partial-overlap duplicate/delete/undo verified, playhead click moved ${result.playheadClickPixels}px and drag committed ${result.playheadDragPixels}px, ${blockedRequests} network request(s) blocked.`)
     clearTimeout(timeout)
     window.destroy()
     app.exit(0)
