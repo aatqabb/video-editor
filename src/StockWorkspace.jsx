@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { getStockApiKeys, getStockProviderStatus, registerStockDownload, saveStockApiKeys, searchStockVideos } from './stockApi'
 import './ScriptWorkspace.css'
+import './StockWorkspace.css'
 
 export default function StockWorkspace({ notify, onImportStock }) {
   const [query, setQuery] = useState('')
@@ -78,7 +79,7 @@ export default function StockWorkspace({ notify, onImportStock }) {
       {error && <div className="stock-error">{error}</div>}
       {!!items.length && <div className="api-status-row">{Object.entries(providerCounts).map(([name, count]) => <span className="api-ready" key={name}>{name}: {count}</span>)}</div>}
 
-      {!!items.length && <div className="stock-results-strip">{items.map((result) => (
+      {!!items.length && <div className="stock-results-strip stock-results-grid">{items.map((result) => (
         <div className="stock-result-card" key={result.id} draggable onDragStart={(event) => {
           event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData('application/x-video-editor-stock', JSON.stringify(result)); event.dataTransfer.setData('text/plain', `stock:${result.id}`)
         }}>
