@@ -1,0 +1,1 @@
+Automated checks validate the preview synchronization contract, but the user's original stuck-preview recording must still be visually re-tested in the running app after merge.
