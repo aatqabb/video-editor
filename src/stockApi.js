@@ -52,12 +52,22 @@ export function splitScriptText(raw) {
 function normalizePexelsVideo(video, query) {
   const files = (video.video_files || []).filter((file) => file.file_type === 'video/mp4' && file.link).sort((a, b) => Math.abs((a.width || 0) - 1920) - Math.abs((b.width || 0) - 1920))
   const file = files[0]; if (!file) return null
-  return { id: `pexels-${video.id}`, provider: 'Pexels', sourceId: String(video.id), title: query, thumbnail: video.image, fileUrl: file.link, pageUrl: video.url, duration: Number(video.duration) || 5, author: video.user?.name || 'Pexels creator', width: file.width || video.width, height: file.height || video.height, mediaType: 'video' }
+  return { id: `pexels-video-${video.id}`, provider: 'Pexels', sourceId: String(video.id), title: query, thumbnail: video.image, fileUrl: file.link, pageUrl: video.url, duration: Number(video.duration) || 5, author: video.user?.name || 'Pexels creator', width: file.width || video.width, height: file.height || video.height, mediaType: 'video' }
+}
+function normalizePexelsPhoto(photo, query) {
+  const fileUrl = photo.src?.large2x || photo.src?.large || photo.src?.original
+  if (!fileUrl) return null
+  return { id: `pexels-photo-${photo.id}`, provider: 'Pexels', sourceId: String(photo.id), title: photo.alt || query, thumbnail: photo.src?.medium || photo.src?.small || fileUrl, fileUrl, pageUrl: photo.url, duration: 5, author: photo.photographer || 'Pexels creator', width: photo.width, height: photo.height, mediaType: 'image' }
 }
 function normalizePixabayVideo(video, query) {
   const source = video.videos?.medium || video.videos?.small || video.videos?.large || video.videos?.tiny
   if (!source?.url) return null
-  return { id: `pixabay-${video.id}`, provider: 'Pixabay', sourceId: String(video.id), title: query, thumbnail: source.thumbnail || video.userImageURL || '', fileUrl: source.url, pageUrl: video.pageURL, duration: Number(video.duration) || 5, author: video.user || 'Pixabay creator', width: source.width, height: source.height, mediaType: 'video' }
+  return { id: `pixabay-video-${video.id}`, provider: 'Pixabay', sourceId: String(video.id), title: query, thumbnail: source.thumbnail || video.userImageURL || '', fileUrl: source.url, pageUrl: video.pageURL, duration: Number(video.duration) || 5, author: video.user || 'Pixabay creator', width: source.width, height: source.height, mediaType: 'video' }
+}
+function normalizePixabayPhoto(photo, query) {
+  const fileUrl = photo.largeImageURL || photo.webformatURL
+  if (!fileUrl) return null
+  return { id: `pixabay-photo-${photo.id}`, provider: 'Pixabay', sourceId: String(photo.id), title: photo.tags || query, thumbnail: photo.previewURL || photo.webformatURL || fileUrl, fileUrl, pageUrl: photo.pageURL, duration: 5, author: photo.user || 'Pixabay creator', width: photo.imageWidth || photo.webformatWidth, height: photo.imageHeight || photo.webformatHeight, mediaType: 'image' }
 }
 function normalizeCoverrVideo(video, query) {
   const fileUrl = video.urls?.mp4 || video.urls?.mp4_download || video.urls?.mp4_preview
@@ -76,25 +86,37 @@ export function getStockProviderStatus() {
 
 export async function fetchPexelsVideos(query) {
   const apiKey = getPexelsApiKey(); if (!apiKey) throw new Error('Pexels API key is not configured')
-  const response = await fetch(`https://api.pexels.com/v1/videos/search?query=${encodeURIComponent(query)}&per_page=8`, { headers: { Authorization: apiKey } })
-  if (!response.ok) throw new Error(`Pexels search failed (${response.status})`)
+  const response = await fetch(`https://api.pexels.com/v1/videos/search?query=${encodeURIComponent(query)}&per_page=80`, { headers: { Authorization: apiKey } })
+  if (!response.ok) throw new Error(`Pexels video search failed (${response.status})`)
   const data = await response.json(); return (data.videos || []).map((video) => normalizePexelsVideo(video, query)).filter(Boolean)
+}
+export async function fetchPexelsPhotos(query) {
+  const apiKey = getPexelsApiKey(); if (!apiKey) throw new Error('Pexels API key is not configured')
+  const response = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=80`, { headers: { Authorization: apiKey } })
+  if (!response.ok) throw new Error(`Pexels image search failed (${response.status})`)
+  const data = await response.json(); return (data.photos || []).map((photo) => normalizePexelsPhoto(photo, query)).filter(Boolean)
 }
 export async function fetchPixabayVideos(query) {
   const apiKey = getPixabayApiKey(); if (!apiKey) throw new Error('Pixabay API key is not configured')
-  const response = await fetch(`https://pixabay.com/api/videos/?key=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(query)}&per_page=8&safesearch=true`)
-  if (!response.ok) throw new Error(`Pixabay search failed (${response.status})`)
+  const response = await fetch(`https://pixabay.com/api/videos/?key=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(query)}&per_page=200&safesearch=true`)
+  if (!response.ok) throw new Error(`Pixabay video search failed (${response.status})`)
   const data = await response.json(); return (data.hits || []).map((video) => normalizePixabayVideo(video, query)).filter(Boolean)
+}
+export async function fetchPixabayPhotos(query) {
+  const apiKey = getPixabayApiKey(); if (!apiKey) throw new Error('Pixabay API key is not configured')
+  const response = await fetch(`https://pixabay.com/api/?key=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(query)}&per_page=200&safesearch=true&image_type=photo`)
+  if (!response.ok) throw new Error(`Pixabay image search failed (${response.status})`)
+  const data = await response.json(); return (data.hits || []).map((photo) => normalizePixabayPhoto(photo, query)).filter(Boolean)
 }
 export async function fetchCoverrVideos(query) {
   const apiKey = getCoverrApiKey(); if (!apiKey) throw new Error('Coverr API key is not configured')
-  const response = await fetch(`https://api.coverr.co/videos?query=${encodeURIComponent(query)}&page_size=8&urls=true`, { headers: { Authorization: `Bearer ${apiKey}` } })
+  const response = await fetch(`https://api.coverr.co/videos?query=${encodeURIComponent(query)}&page_size=100&urls=true`, { headers: { Authorization: `Bearer ${apiKey}` } })
   if (!response.ok) throw new Error(`Coverr search failed (${response.status})`)
   const data = await response.json(); return (data.hits || []).map((video) => normalizeCoverrVideo(video, query)).filter(Boolean)
 }
 export async function fetchUnsplashPhotos(query) {
   const apiKey = getUnsplashApiKey(); if (!apiKey) throw new Error('Unsplash access key is not configured')
-  const response = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=8&content_filter=high`, { headers: { Authorization: `Client-ID ${apiKey}`, 'Accept-Version': 'v1' } })
+  const response = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=30&content_filter=high`, { headers: { Authorization: `Client-ID ${apiKey}`, 'Accept-Version': 'v1' } })
   if (!response.ok) throw new Error(`Unsplash search failed (${response.status})`)
   const data = await response.json(); return (data.results || []).map((photo) => normalizeUnsplashPhoto(photo, query)).filter(Boolean)
 }
@@ -114,32 +136,37 @@ export async function registerStockDownload(result) {
   }
 }
 
-function interleaveProviderResults(groups, limit = 20) {
-  const rows = groups.map((group) => [...group])
-  const merged = []
-  let index = 0
-  while (merged.length < limit && rows.some((row) => row.length)) {
-    const row = rows[index % rows.length]
-    if (row.length) merged.push(row.shift())
-    index += 1
-  }
-  return merged
+function orderVideosThenImages(groups) {
+  const all = groups.flat().filter(Boolean)
+  const seen = new Set()
+  const unique = all.filter((item) => {
+    const key = `${item.provider}:${item.mediaType}:${item.sourceId}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  return [
+    ...unique.filter((item) => item.mediaType !== 'image'),
+    ...unique.filter((item) => item.mediaType === 'image'),
+  ]
 }
 
 export async function searchStockVideos(query, provider = 'All') {
   const tasks = []
-  const add = (name, hasKey, fn) => {
-    if ((provider === 'All' || provider === 'Both' || provider === name) && hasKey) tasks.push({ name, promise: fn(query) })
-  }
+  const allows = (name) => provider === 'All' || provider === name || (provider === 'Both' && (name === 'Pexels' || name === 'Pixabay'))
+  const add = (name, hasKey, fn) => { if (allows(name) && hasKey) tasks.push({ name, promise: fn(query) }) }
+
   add('Pexels', getPexelsApiKey(), fetchPexelsVideos)
   add('Pixabay', getPixabayApiKey(), fetchPixabayVideos)
   add('Coverr', getCoverrApiKey(), fetchCoverrVideos)
+  add('Pexels', getPexelsApiKey(), fetchPexelsPhotos)
+  add('Pixabay', getPixabayApiKey(), fetchPixabayPhotos)
   add('Unsplash', getUnsplashApiKey(), fetchUnsplashPhotos)
   if (!tasks.length) throw new Error(`Add your ${provider === 'All' || provider === 'Both' ? 'stock provider' : provider} API key in API Keys`)
 
   const settled = await Promise.allSettled(tasks.map((task) => task.promise))
   const successfulGroups = settled.map((result) => result.status === 'fulfilled' ? result.value : [])
-  const items = interleaveProviderResults(successfulGroups, 20)
+  const items = orderVideosThenImages(successfulGroups)
   if (items.length) return items
 
   const failures = settled
