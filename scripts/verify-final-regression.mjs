@@ -6,6 +6,7 @@ const checks = [
   ['Generated SFX assets', 'node', ['scripts/verify-generated-sfx-assets.mjs']],
   ['Timeline state', 'node', ['scripts/verify-timeline-state.mjs']],
   ['Overlap replacement and visibility UI', 'node', ['scripts/verify-overlap-visibility-contract.mjs']],
+  ['Preview stock and script workflow', 'node', ['scripts/verify-preview-stock-script-contract.mjs']],
   ['Track visibility and preview', 'node', ['scripts/verify-track-visibility-preview-contract.mjs']],
   ['Preview hide and transition visibility', 'node', ['scripts/verify-preview-transition-contract.mjs']],
   ['Waveform and Effect Controls', 'node', ['scripts/verify-waveform-effect-controls-contract.mjs']],
