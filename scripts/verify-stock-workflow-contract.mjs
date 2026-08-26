@@ -5,8 +5,9 @@ const stockWorkspace = fs.readFileSync(new URL('../src/StockWorkspace.jsx', impo
 const api = fs.readFileSync(new URL('../src/stockApi.js', import.meta.url), 'utf8')
 
 const requirements = [
-  ['full script input', /placeholder="Paste full script here\.\.\."/, scriptWorkspace],
-  ['split into editable lines', /Split into Lines/, scriptWorkspace],
+  ['full script input', /Paste full script here/, scriptWorkspace],
+  ['auto split plus search control', /Split \+ Auto Search/, scriptWorkspace],
+  ['script change schedules automatic split and search', /autoSplitTimerRef[\s\S]*splitIntoLines\(value, true\)/, scriptWorkspace],
   ['editable per-line query', /placeholder="Editable stock search query"/, scriptWorkspace],
   ['standalone functional Stock workspace', /searchStockVideos\(clean, provider\)/, stockWorkspace],
   ['Pexels provider option', /<option>Pexels<\/option>/, stockWorkspace],
@@ -22,14 +23,19 @@ const requirements = [
 ]
 
 const apiRequirements = [
-  ['Pexels API endpoint', /api\.pexels\.com\/v1\/videos\/search/, api],
+  ['Pexels video API endpoint', /api\.pexels\.com\/v1\/videos\/search/, api],
+  ['Pexels image API endpoint', /api\.pexels\.com\/v1\/search/, api],
   ['Pixabay video API endpoint', /pixabay\.com\/api\/videos/, api],
+  ['Pixabay image API endpoint', /pixabay\.com\/api\/\?key=/, api],
   ['Coverr API endpoint', /api\.coverr\.co\/videos\?query=/, api],
   ['Coverr Bearer authentication', /Authorization: `Bearer \$\{apiKey\}`/, api],
   ['Unsplash photo API endpoint', /api\.unsplash\.com\/search\/photos/, api],
   ['Unsplash Client-ID authentication', /Authorization: `Client-ID \$\{apiKey\}`/, api],
   ['Unsplash download telemetry', /downloadLocation/, api],
-  ['balanced provider interleave', /interleaveProviderResults/, api],
+  ['Pexels maximum page size requested', /per_page=80/, api],
+  ['Pixabay maximum page size requested', /per_page=200/, api],
+  ['Unsplash maximum page size requested', /per_page=30/, api],
+  ['video results are ordered before image results', /orderVideosThenImages[\s\S]*mediaType !== 'image'[\s\S]*mediaType === 'image'/, api],
   ['searchStockVideos export', /export async function searchStockVideos/, api],
 ]
 
@@ -46,4 +52,4 @@ for (const [name, pattern] of apiRequirements) {
 }
 
 if (failed) process.exit(1)
-console.log('PASS four-provider stock workflow contract verified: Pexels/Pixabay video, Coverr video, Unsplash photo, balanced All results, preview/import/download and local keys.')
+console.log('PASS stock workflow contract verified: maximum provider page sizes, videos before images, preview/import/download, and script auto split/search.')

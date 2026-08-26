@@ -12,13 +12,67 @@ export function addTimelineTrack(tracks, type) {
   return { tracks: [...tracks, track], track }
 }
 
+function clipBounds(clip) {
+  const start = Number(clip?.start) || 0
+  const duration = Math.max(0, Number(clip?.duration) || 0)
+  return { start, end: start + duration }
+}
+
 function clipsOverlap(a, b) {
   if (!a || !b || a.trackId !== b.trackId) return false
-  const aStart = Number(a.start) || 0
-  const bStart = Number(b.start) || 0
-  const aEnd = aStart + Math.max(0, Number(a.duration) || 0)
-  const bEnd = bStart + Math.max(0, Number(b.duration) || 0)
-  return aStart < bEnd - 0.0001 && aEnd > bStart + 0.0001
+  const aBounds = clipBounds(a)
+  const bBounds = clipBounds(b)
+  return aBounds.start < bBounds.end - 0.0001 && aBounds.end > bBounds.start + 0.0001
+}
+
+function shiftedSourceIn(clip, removedFromStart) {
+  const speed = Math.max(0.1, Number(clip?.video?.speed) || 1)
+  return (Number(clip?.sourceIn) || 0) + Math.max(0, removedFromStart) * speed
+}
+
+function subtractWinnerFromClip(clip, winner) {
+  if (!clipsOverlap(clip, winner)) return [clip]
+
+  const loser = clipBounds(clip)
+  const win = clipBounds(winner)
+  const overlapStart = Math.max(loser.start, win.start)
+  const overlapEnd = Math.min(loser.end, win.end)
+
+  // Winner covers the whole older clip.
+  if (overlapStart <= loser.start + 0.0001 && overlapEnd >= loser.end - 0.0001) return []
+
+  // Only the tail of the older clip is covered: keep its untouched left portion.
+  if (overlapStart > loser.start + 0.0001 && overlapEnd >= loser.end - 0.0001) {
+    return [{ ...clip, duration: Math.max(0, overlapStart - loser.start) }]
+  }
+
+  // Only the head of the older clip is covered: keep its untouched right portion and
+  // advance sourceIn so playback resumes from the correct source frame/sample.
+  if (overlapStart <= loser.start + 0.0001 && overlapEnd < loser.end - 0.0001) {
+    const removedFromStart = overlapEnd - loser.start
+    return [{
+      ...clip,
+      start: overlapEnd,
+      duration: Math.max(0, loser.end - overlapEnd),
+      sourceIn: shiftedSourceIn(clip, removedFromStart),
+    }]
+  }
+
+  // Winner sits inside the older clip: remove only the occupied middle and split the
+  // remaining left/right portions into two clips.
+  const leftDuration = Math.max(0, overlapStart - loser.start)
+  const rightDuration = Math.max(0, loser.end - overlapEnd)
+  const right = {
+    ...clip,
+    id: `${clip.id}-after-${winner.id}`,
+    start: overlapEnd,
+    duration: rightDuration,
+    sourceIn: shiftedSourceIn(clip, overlapEnd - loser.start),
+  }
+  return [
+    { ...clip, duration: leftDuration },
+    right,
+  ].filter((part) => part.duration > 0.0001)
 }
 
 export function replaceTimelineOverlaps(clips, winnerIds) {
@@ -27,10 +81,17 @@ export function replaceTimelineOverlaps(clips, winnerIds) {
   const winnerClips = clips.filter((clip) => winners.has(clip.id))
   if (!winnerClips.length) return clips
 
-  return clips.filter((clip) => {
-    if (winners.has(clip.id)) return true
-    return !winnerClips.some((winner) => clipsOverlap(clip, winner))
+  const untouchedWinners = clips.filter((clip) => winners.has(clip.id))
+  const olderClips = clips.filter((clip) => !winners.has(clip.id))
+  const resolvedOlder = olderClips.flatMap((clip) => {
+    let parts = [clip]
+    winnerClips.forEach((winner) => {
+      parts = parts.flatMap((part) => subtractWinnerFromClip(part, winner))
+    })
+    return parts
   })
+
+  return [...resolvedOlder, ...untouchedWinners]
 }
 
 export function insertClipReplacingOverlaps(clips, clip) {
@@ -71,7 +132,7 @@ export function moveSelectedClips({ clips, selectedIds, anchorId, targetTrackId,
     return { ...clip, start: clip.start + delta, trackId: nextTrackId }
   })
 
-  // The moved/newer clip wins. Any older clip occupying the same track/time is removed
-  // instead of continuing to play underneath it.
+  // The moved/newer clip wins only the time range it actually occupies. Older clips on
+  // the same layer are trimmed or split so their non-overlapping portions remain.
   return replaceTimelineOverlaps(moved, movingIds)
 }

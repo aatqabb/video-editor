@@ -5,6 +5,7 @@ import { timelineRefactorPlugin } from './scripts/vite-timeline-refactor-plugin.
 import { overlapReplacementPlugin } from './scripts/vite-overlap-replacement-plugin.js'
 import { playbackMediaPlugin } from './scripts/vite-playback-media-plugin.js'
 import { programPlaybackSyncPlugin } from './scripts/vite-program-playback-sync-plugin.js'
+import { programPreviewStabilityPlugin } from './scripts/vite-program-preview-stability-plugin.js'
 import { unlimitedTimelineImportPlugin } from './scripts/vite-unlimited-timeline-import-plugin.js'
 import { durationUiSyncPlugin } from './scripts/vite-duration-ui-sync-plugin.js'
 import { smoothTimelineDragPlugin } from './scripts/vite-smooth-timeline-drag-plugin.js'
@@ -19,5 +20,5 @@ import { allAudioWaveformsPlugin } from './scripts/vite-all-audio-waveforms-plug
 // https://vite.dev/config/
 export default defineConfig({
   base: './',
-  plugins: [normalizeLineEndingsPlugin(), stockWorkspacePlugin(), timelineRefactorPlugin(), overlapReplacementPlugin(), playbackMediaPlugin(), unlimitedTimelineImportPlugin(), durationUiSyncPlugin(), programPlaybackSyncPlugin(), premierePlayheadPlugin(), smoothTimelineDragPlugin(), trackDeletePlugin(), trackVisibilityUiPlugin(), timelineTransitionVisibilityPlugin(), allAudioWaveformsPlugin(), programTransformOverlayPlugin(), react()],
+  plugins: [normalizeLineEndingsPlugin(), stockWorkspacePlugin(), timelineRefactorPlugin(), overlapReplacementPlugin(), playbackMediaPlugin(), unlimitedTimelineImportPlugin(), durationUiSyncPlugin(), programPlaybackSyncPlugin(), programPreviewStabilityPlugin(), premierePlayheadPlugin(), smoothTimelineDragPlugin(), trackDeletePlugin(), trackVisibilityUiPlugin(), timelineTransitionVisibilityPlugin(), allAudioWaveformsPlugin(), programTransformOverlayPlugin(), react()],
 })
