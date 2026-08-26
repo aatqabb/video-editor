@@ -8,7 +8,7 @@ const checks = [
   ['native playback is restarted if media is paused', plugin.includes("if (element.paused) element.play?.().catch?.(() => {})")],
   ['ordinary playback is not continuously seeked', plugin.includes('if (distance > .75)')],
   ['paused scrub remains frame accurate', plugin.includes('if (distance > .015)')],
-  ['decoded playback frames can reveal immediately while playing', plugin.includes("if (playing) {\n          setFrameReady(true)")],
+  ['decoded playback frames can reveal immediately while playing', /if \(playing\) \{\s*setFrameReady\(true\)/.test(plugin)],
 ]
 
 let failed = false
