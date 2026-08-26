@@ -7,7 +7,7 @@ const vite = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf
 
 const checks = [
   ['preview hides stale video while seeking', previewPlugin.includes("const onSeeking = () => setFrameReady(false)")],
-  ['preview seek completion rechecks expected playhead frame', previewPlugin.includes('expectedTimeRef.current') && previewPlugin.includes("distance > (playing ? .4 : .04)")),
+  ['preview seek completion rechecks expected playhead frame', previewPlugin.includes('expectedTimeRef.current') && previewPlugin.includes("distance > (playing ? .4 : .04)")],
   ['preview waits for decoded video frame before reveal', previewPlugin.includes('requestVideoFrameCallback') && previewPlugin.includes('revealDecodedFrame')],
   ['paused preview uses tight playhead sync while playback avoids seek thrash', previewPlugin.includes('playing ? .4 : .015')],
   ['preview cancels stale frame reveal callbacks', previewPlugin.includes('frameRequestRef.current += 1')],
@@ -18,7 +18,7 @@ const checks = [
   ['stock orders all videos before images', /mediaType !== 'image'[\s\S]*mediaType === 'image'/.test(stockApi)],
   ['script edits debounce into automatic split', scriptWorkspace.includes('autoSplitTimerRef') && scriptWorkspace.includes('splitIntoLines(value, true)')],
   ['script automatic split starts line searches', scriptWorkspace.includes('void searchLinesSequentially(nextLines, true)')],
-  ['script auto-search defaults to all configured providers', scriptWorkspace.includes("const [provider, setProvider] = useState('All')")),
+  ['script auto-search defaults to all configured providers', scriptWorkspace.includes("const [provider, setProvider] = useState('All')")],
   ['script preview handles stock images', scriptWorkspace.includes("preview.mediaType === 'image'")],
 ]
 
