@@ -6,9 +6,9 @@ const scriptWorkspace = fs.readFileSync(new URL('../src/ScriptWorkspace.jsx', im
 const vite = fs.readFileSync(new URL('../vite.config.js', import.meta.url), 'utf8')
 
 const checks = [
-  ['preview does not hide decoded video on each seek', !previewPlugin.includes("const onSeeking = () => setFrameReady(false)")],
-  ['preview event wiring does not rebuild on every playhead tick', previewPlugin.includes("}, [clip.id, source, playing, failed, speed])")],
-  ['decoded preview becomes visible from loaded/play/seek/timeupdate events', previewPlugin.includes('const markReady = () =>') && previewPlugin.includes("element.addEventListener('timeupdate', onTimeUpdate)")),
+  ['preview does not hide decoded video on each seek', !previewPlugin.includes('const onSeeking = () => setFrameReady(false)')],
+  ['preview event wiring does not rebuild on every playhead tick', previewPlugin.includes('}, [clip.id, source, playing, failed, speed])')],
+  ['decoded preview becomes visible from loaded/play/seek/timeupdate events', previewPlugin.includes('const markReady = () =>') && previewPlugin.includes("element.addEventListener('timeupdate', onTimeUpdate)")],
   ['playing preview only corrects meaningful drift', previewPlugin.includes('if (distance > .75)')],
   ['playing preview restarts a paused media element', previewPlugin.includes("if (element.paused) element.play?.().catch?.(() => {})")],
   ['paused preview keeps tight frame-accurate seek tolerance', previewPlugin.includes('if (distance > .015)')],
