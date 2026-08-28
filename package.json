@@ -52,7 +52,6 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
-      "resources/app-icon.png",
       "resources/app-icon.ico",
       "package.json"
     ],
