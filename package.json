@@ -46,11 +46,11 @@
   "build": {
     "appId": "com.aatqabb.videoeditor",
     "productName": "Video Editor",
-    "directories": { "output": "release" },
+    "directories": { "output": "release", "buildResources": "build" },
     "files": ["dist/**/*", "electron/**/*", "package.json"],
     "extraResources": [{ "from": "resources/ffmpeg", "to": "ffmpeg", "filter": ["ffmpeg.exe", "ffprobe.exe", "README.txt"] }],
     "asar": true,
-    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "artifactName": "VideoEditor-Setup-${version}.${ext}" },
+    "win": { "icon": "build/icon.svg", "target": [{ "target": "nsis", "arch": ["x64"] }], "artifactName": "VideoEditor-Setup-${version}.${ext}" },
     "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Video Editor" }
   }
 }
