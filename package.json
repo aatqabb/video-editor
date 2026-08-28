@@ -1,11 +1,12 @@
 {
   "name": "videoeditor",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "generate:sfx": "node scripts/generate-sfx-assets.mjs",
+    "generate:icon": "node scripts/generate-app-icon.cjs",
     "build": "npm run generate:sfx && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
@@ -26,9 +27,9 @@
     "verify:windows:acceptance": "node scripts/verify-windows-acceptance.cjs",
     "verify:release": "node scripts/verify-release-readiness.mjs",
     "verify:final": "node scripts/verify-final-regression.mjs",
-    "desktop": "npm run build && electron .",
+    "desktop": "npm run generate:icon && npm run build && electron .",
     "prepare:ffmpeg:win": "node scripts/prepare-windows-ffmpeg.cjs",
-    "package:win": "npm run prepare:ffmpeg:win && npm run build && npx --yes electron-builder@26.0.12 --win nsis --x64"
+    "package:win": "npm run generate:icon && npm run prepare:ffmpeg:win && npm run build && npx --yes electron-builder@26.0.12 --win nsis --x64"
   },
   "dependencies": {
     "react": "^19.2.8",
