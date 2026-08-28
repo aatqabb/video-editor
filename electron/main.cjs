@@ -39,6 +39,7 @@ function createWindow() {
     backgroundColor: '#0d0d0f',
     autoHideMenuBar: true,
     show: false,
+    icon: path.join(__dirname, '..', 'resources', 'app-icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
