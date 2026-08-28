@@ -181,7 +181,7 @@ ipcMain.handle('desktop:show-open-project', async () => {
 
 if (!squirrelStartup) {
   app.whenReady().then(() => {
-    app.setAppUserModelId('com.squirrel.VideoEditor.VideoEditor')
+    app.setAppUserModelId('com.aatqabb.videoeditor')
     createWindow()
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
