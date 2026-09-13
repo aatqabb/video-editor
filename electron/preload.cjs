@@ -18,4 +18,5 @@ contextBridge.exposeInMainWorld('videoEditorDesktop', {
   },
   chooseProjectPath: (defaultName) => ipcRenderer.invoke('desktop:choose-project-path', defaultName),
   chooseOpenProjectPath: () => ipcRenderer.invoke('desktop:show-open-project'),
+  fetchYoutubeTranscript: (videoId) => ipcRenderer.invoke('desktop:fetch-youtube-transcript', videoId),
 })

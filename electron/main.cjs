@@ -5,6 +5,7 @@ const path = require('node:path')
 const { probeFfmpeg, startExport } = require('./exportEngine.cjs')
 const { makeProxy } = require('./proxyEngine.cjs')
 const { summarizeGpuCapabilities } = require('./gpuCapabilities.cjs')
+const { fetchTranscript } = require('./youtubeTranscript.cjs')
 
 function handleSquirrelStartupEvent() {
   if (process.platform !== 'win32') return false
@@ -160,6 +161,14 @@ ipcMain.handle('desktop:save-temp-media', async (_event, payload = {}) => {
   const filePath = path.join(tempDir, `${Date.now()}-${Math.random().toString(16).slice(2, 8)}.${extension}`)
   fs.writeFileSync(filePath, Buffer.from(bytes))
   return filePath
+})
+
+ipcMain.handle('desktop:fetch-youtube-transcript', async (_event, videoId) => {
+  try {
+    return await fetchTranscript(videoId)
+  } catch (error) {
+    throw new Error(error?.message || 'Could not fetch this video\'s transcript')
+  }
 })
 
 ipcMain.handle('desktop:choose-project-path', async (_event, defaultName = 'Untitled Project.vedit.json') => {
