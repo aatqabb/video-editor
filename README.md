@@ -10,6 +10,7 @@ A desktop-oriented React + Vite video editor with an Electron shell, multi-track
 - Voice-over recording through `getUserMedia` + `MediaRecorder`, with recorded clips inserted into the timeline.
 - Project save/autosave/recovery and recent-project handling.
 - Text, effects, transitions, stock/SFX workspaces, and export UI.
+- AI Footage Finder: paste a script, it splits into scenes, expands each line into visual concepts (free keyword/concept matching, no AI API cost), searches YouTube (requires your own `VITE_YOUTUBE_API_KEY` / API Keys panel), and best-effort matches transcript timestamps to rank footage sources by relevance. Transcript fetching runs in the desktop app only (browser preview mode can search but not score timestamps). Results are references — "Add to Project" inserts a placeholder clip that must be relinked to licensed footage before final export.
 - Built-in SFX are generated as packaged WAV assets during the production build and use Electron-safe relative URLs for preview/timeline insertion.
 - Electron packaging for Windows with bundled FFmpeg resources.
 
