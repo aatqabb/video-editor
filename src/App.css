@@ -116,6 +116,7 @@ input,textarea,select{user-select:text}
 .color-title{background:#92264f}
 .color-green{background:#2a733d}
 .color-yellow{background:#777b16}
+.color-youtube{background:#a13a1f}
 .clip-name{position:relative;z-index:2;pointer-events:none;text-shadow:0 1px 1px rgba(0,0,0,.35)}
 .trim-handle{position:absolute;top:0;bottom:0;width:7px;z-index:5;cursor:ew-resize}
 .trim-handle.left{left:0}

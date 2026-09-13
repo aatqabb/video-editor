@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import ScriptWorkspace from './ScriptWorkspace'
+import FootageFinderWorkspace from './FootageFinderWorkspace'
 import { EffectsWorkspace, SfxWorkspace, TextWorkspace, TransitionWorkspace } from './CreativePanels'
 import { AudioControls, VideoControls, VoiceoverWorkspace } from './ClipControls'
 import ProjectWorkspace from './ProjectWorkspace'
@@ -9,7 +10,7 @@ import ExportWorkspace from './ExportWorkspace'
 import { buildProjectDocument, clearAutosave, getRecentProjects, readAutosave, readProjectFile, rememberProject, saveProjectFile, writeAutosave } from './projectPersistence'
 
 const leftTabs = ['Media', 'Project', 'Effect Controls', 'Effects', 'Tools', 'Text', 'Properties']
-const centerTabs = ['Source', 'Script', 'Stock', 'SFX', 'Transitions', 'Essential Sound', 'Export']
+const centerTabs = ['Source', 'Script', 'Footage Finder', 'Stock', 'SFX', 'Transitions', 'Essential Sound', 'Export']
 
 const shortcutRows = [
   ['Space', 'Play / Pause preview'],
@@ -488,6 +489,43 @@ function App() {
     notify(`${result.provider} video added to ${preferredTrack.id}`)
   }
 
+  const addFootageReferenceToTimeline = (result, sourceLineId, targetTrackId = 'V1', startAt = playhead) => {
+    const preferredTrack = tracks.find((track) => track.id === targetTrackId && track.type === 'video' && !track.locked)
+      || tracks.find((track) => track.type === 'video' && !track.locked)
+
+    if (!preferredTrack) return notify('Unlock a video track before adding a footage reference')
+
+    const id = `youtube-${result.videoId}-${Date.now()}`
+    const rawDuration = Number(result.end) > Number(result.start) ? result.end - result.start : 5
+    const duration = Math.max(2, Math.min(12, rawDuration))
+    const start = Math.max(0, Math.min(TIMELINE_SECONDS - duration, snapTime(startAt)))
+
+    commitClips((current) => [
+      ...current,
+      {
+        id,
+        trackId: preferredTrack.id,
+        name: `YouTube ref: ${result.title}`,
+        type: 'video',
+        kind: 'youtube-reference',
+        start,
+        duration,
+        color: 'youtube',
+        sourceIn: 0,
+        thumbnail: result.thumbnail,
+        pageUrl: result.pageUrl,
+        provider: 'YouTube',
+        videoId: result.videoId,
+        timestampStart: result.start,
+        timestampEnd: result.end,
+        matchScore: result.matchScore,
+        sourceLineId,
+      },
+    ])
+    setSelectedClipIds([id])
+    notify('YouTube reference added — replace with licensed footage before final export')
+  }
+
   const getProjectDocument = () => buildProjectDocument({
     name: projectName, settings: projectSettings, clips, tracks, markers, playhead,
   })
@@ -733,6 +771,14 @@ function App() {
         <ScriptWorkspace
           notify={notify}
           onImportStock={(result, lineId) => addStockToTimeline(result, lineId)}
+        />
+      )
+    }
+    if (centerTab === 'Footage Finder') {
+      return (
+        <FootageFinderWorkspace
+          notify={notify}
+          onAddFootage={(result, lineId) => addFootageReferenceToTimeline(result, lineId)}
         />
       )
     }

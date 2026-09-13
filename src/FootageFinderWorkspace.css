@@ -1,0 +1,34 @@
+.footage-finder-workspace .api-key-panel{grid-template-columns:1fr}
+.footage-disclaimer{margin:7px 8px 0;padding:7px 8px;border-radius:3px;background:#1c1f14;border:1px solid #45491f;color:#c9cd9a;font-size:9px;line-height:1.4;flex-shrink:0}
+
+.footage-line-card{padding:7px}
+.footage-line-head{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:7px;align-items:start}
+.footage-line-text{font-size:10px;line-height:1.4;color:#d8d8dc;padding-top:3px}
+.footage-line-head button{height:26px;border:1px solid #257ed1;border-radius:3px;background:#176ec2;color:#fff;padding:0 9px;font-size:10px;font-weight:600;white-space:nowrap}
+.footage-line-head button:hover{background:#2080dd}
+.footage-line-head button:disabled{opacity:.6;cursor:default}
+
+.footage-concepts{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+.footage-concept-chip{padding:2px 7px;border-radius:10px;background:#20232a;border:1px solid #34424f;color:#8fb4d1;font-size:8px}
+
+.footage-results-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.footage-result-card{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:8px;padding:6px;border:1px solid #2f2f35;border-radius:4px;background:#111113;align-items:center}
+.footage-result-thumb{position:relative;width:96px;height:56px;padding:0;border-radius:3px;overflow:hidden;background:#09090a;flex-shrink:0}
+.footage-result-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.footage-match-badge{position:absolute;top:3px;right:3px;padding:2px 5px;border-radius:9px;font-size:8px;font-weight:700;color:#0c0c0d}
+.footage-match-badge.high{background:#7be08b}
+.footage-match-badge.mid{background:#e0c26a}
+.footage-match-badge.low{background:#c98686}
+.footage-result-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.footage-source-label{font-size:8px;color:#8a8a92;text-transform:uppercase;letter-spacing:.3px}
+.footage-result-title{font-size:10px;color:#e1e1e4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.footage-timestamp{font-size:9px;color:#8ec4ff;font-family:Consolas,monospace}
+.footage-timestamp-muted{color:#9a9aa1}
+.footage-result-actions{display:flex;flex-direction:column;gap:3px}
+.footage-result-actions button{height:22px;padding:0 7px;border:1px solid #39393f;border-radius:3px;background:#242428;color:#ddd;font-size:8px;white-space:nowrap}
+.footage-result-actions button:hover{background:#303035}
+
+@media(max-width:1000px){
+  .footage-result-card{grid-template-columns:78px minmax(0,1fr);grid-template-rows:auto auto}
+  .footage-result-actions{grid-column:1/-1;flex-direction:row}
+}
