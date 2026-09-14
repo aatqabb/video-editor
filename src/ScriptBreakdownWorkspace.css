@@ -1,0 +1,27 @@
+.breakdown-summary-row{display:flex;flex-wrap:wrap;gap:8px;padding:9px 8px 0}
+
+.breakdown-scene-list{display:flex;flex-direction:column;gap:8px;padding:10px 8px 16px}
+
+.breakdown-scene-card{border:1px solid #2f2f35;border-radius:5px;background:#111113;padding:9px 10px;display:flex;flex-direction:column;gap:7px}
+
+.breakdown-scene-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.breakdown-scene-time{font-size:9px;color:#8fb4d1;white-space:nowrap}
+
+.breakdown-narration{margin:0;font-size:11px;color:#e1e1e4;line-height:1.4}
+
+.breakdown-field{display:flex;flex-direction:column;gap:4px}
+.breakdown-field-label{font-size:8px;color:#8a8a92;text-transform:uppercase;letter-spacing:.3px}
+
+.breakdown-chip-row{display:flex;flex-wrap:wrap;gap:5px}
+.breakdown-chip{padding:3px 8px;border-radius:10px;font-size:8px;border:1px solid transparent}
+.breakdown-chip.visual{background:#20232a;border-color:#34424f;color:#8fb4d1}
+.breakdown-chip.broll{background:#1a2320;border-color:#2f4a3f;color:#8fd1a8}
+.breakdown-chip.sfx{background:#241c14;border-color:#4f3a1f;color:#e0c26a}
+.breakdown-chip.sfx.missing{background:#241416;border-color:#4f2626;color:#d18f8f}
+
+.breakdown-sfx-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.breakdown-sfx-row button{height:22px;padding:0 8px;border:1px solid #39393f;border-radius:3px;background:#1c1c20;color:#bdbdc2;font-size:8px}
+.breakdown-sfx-row button:hover{background:#26262c}
+.breakdown-sfx-note{width:100%;font-size:8px;color:#8a8a92}
+
+.breakdown-empty{font-size:9px;color:#8a8a92}

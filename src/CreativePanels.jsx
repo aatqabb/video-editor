@@ -1,4 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
+import { splitScriptText } from './stockApi'
+import { getLibrarySfx, suggestSfxForLine } from './sfxSuggestions'
 import './CreativePanels.css'
 
 const COMMON_FONTS = ['Segoe UI', 'Arial', 'Calibri', 'Cambria', 'Georgia', 'Verdana', 'Trebuchet MS', 'Times New Roman', 'Courier New', 'Impact']
@@ -27,8 +29,50 @@ const BUILT_IN_SFX = [
 ].map((sfx)=>({...sfx,url:`${import.meta.env.BASE_URL}sfx/${sfx.id}.wav`,packaged:true}))
 
 export function SfxWorkspace({ onAddSfx, notify }) {
+  const [mode,setMode]=useState('library')
   const [search,setSearch]=useState(''); const fileRef=useRef(null); const previewRef=useRef(null); const filtered=useMemo(()=>BUILT_IN_SFX.filter((sfx)=>sfx.name.toLowerCase().includes(search.toLowerCase())),[search])
-  const previewSfx=(sfx)=>{try{previewRef.current?.pause();const audio=new Audio(sfx.url);previewRef.current=audio;audio.play().catch(()=>notify('Could not preview that SFX'))}catch{notify('Could not preview that SFX')}}
+  const [smartText,setSmartText]=useState(''); const [smartResults,setSmartResults]=useState([])
+  const previewSfx=(sfx)=>{if(!sfx)return notify('No built-in SFX for this — import one manually');try{previewRef.current?.pause();const audio=new Audio(sfx.url);previewRef.current=audio;audio.play().catch(()=>notify('Could not preview that SFX'))}catch{notify('Could not preview that SFX')}}
   const importOwnSfx=(file)=>{if(!file)return;const url=URL.createObjectURL(file);const audio=new Audio(url);audio.addEventListener('loadedmetadata',()=>{onAddSfx({id:`custom-${Date.now()}`,name:file.name,duration:Number.isFinite(audio.duration)?audio.duration:3,url,custom:true});notify(`${file.name} added to timeline`)},{once:true});audio.addEventListener('error',()=>notify('Could not read that audio file'),{once:true})}
-  return <div className="creative-panel sfx-workspace"><div className="creative-heading"><strong>SFX LIBRARY</strong><button onClick={()=>fileRef.current?.click()}>+ Import SFX</button></div><input className="creative-search" placeholder="Search SFX" value={search} onChange={(event)=>setSearch(event.target.value)}/><input ref={fileRef} type="file" accept="audio/*" hidden onChange={(event)=>importOwnSfx(event.target.files?.[0])}/><div className="sfx-list">{filtered.map((sfx)=><div className="sfx-row" key={sfx.id} draggable onDragStart={(event)=>{event.dataTransfer.effectAllowed='copy';event.dataTransfer.setData('application/x-video-editor-sfx',JSON.stringify(sfx))}}><button className="sfx-play" onClick={()=>previewSfx(sfx)}>▶</button><span>{sfx.name}</span><small>{sfx.duration.toFixed(2)}s</small><button onClick={()=>onAddSfx(sfx)}>Add</button></div>)}</div></div>
+  const runSmartFinder=()=>{
+    const lines=splitScriptText(smartText)
+    if(!lines.length)return notify('Scene ya action describe karo pehle')
+    setSmartResults(lines.map((text,index)=>({id:`smart-${index}-${Date.now()}`,text,suggestion:suggestSfxForLine(text)})))
+    notify(`${lines.length} line(s) analyzed`)
+  }
+  const addSmartSfx=(suggestion)=>{const sfx=getLibrarySfx(suggestion?.libraryId);if(!sfx)return notify('No built-in SFX for this — import one manually');onAddSfx(sfx)}
+  return <div className="creative-panel sfx-workspace">
+    <div className="creative-heading">
+      <strong>{mode==='library'?'SFX LIBRARY':'SFX SMART FINDER'}</strong>
+      <div className="sfx-mode-row">
+        <button className={mode==='library'?'active':''} onClick={()=>setMode('library')}>Browse Library</button>
+        <button className={mode==='smart'?'active':''} onClick={()=>setMode('smart')}>Smart Finder</button>
+      </div>
+      {mode==='library' && <button onClick={()=>fileRef.current?.click()}>+ Import SFX</button>}
+    </div>
+    {mode==='library' ? <>
+      <input className="creative-search" placeholder="Search SFX" value={search} onChange={(event)=>setSearch(event.target.value)}/>
+      <input ref={fileRef} type="file" accept="audio/*" hidden onChange={(event)=>importOwnSfx(event.target.files?.[0])}/>
+      <div className="sfx-list">{filtered.map((sfx)=><div className="sfx-row" key={sfx.id} draggable onDragStart={(event)=>{event.dataTransfer.effectAllowed='copy';event.dataTransfer.setData('application/x-video-editor-sfx',JSON.stringify(sfx))}}><button className="sfx-play" onClick={()=>previewSfx(sfx)}>▶</button><span>{sfx.name}</span><small>{sfx.duration.toFixed(2)}s</small><button onClick={()=>onAddSfx(sfx)}>Add</button></div>)}</div>
+    </> : <div className="sfx-smart-finder">
+      <p className="sfx-smart-hint">Scene ya action likho (ek line ya poora script paste karo) — matching sound suggest karega. Free, rule-based hai, koi API nahi.</p>
+      <textarea className="sfx-smart-input" value={smartText} onChange={(event)=>setSmartText(event.target.value)} placeholder="e.g. He knocked on the door nervously, then the phone rang..."/>
+      <div className="sfx-smart-actions"><button className="primary" onClick={runSmartFinder}>Find Matching SFX</button></div>
+      <div className="sfx-smart-results">
+        {smartResults.map((item)=>(
+          <div className="sfx-smart-row" key={item.id}>
+            <span className="sfx-smart-text">{item.text}</span>
+            {item.suggestion ? <div className="sfx-smart-match">
+              <span className={`sfx-smart-chip${item.suggestion.libraryId?'':' missing'}`}>{item.suggestion.libraryId?item.suggestion.libraryName:item.suggestion.label}</span>
+              {item.suggestion.libraryId && <>
+                <button onClick={()=>previewSfx(getLibrarySfx(item.suggestion.libraryId))}>▶</button>
+                <button onClick={()=>addSmartSfx(item.suggestion)}>+ Add</button>
+              </>}
+              {item.suggestion.note && <small className="sfx-smart-note">{item.suggestion.note}</small>}
+            </div> : <span className="sfx-smart-none">No specific SFX cue detected — browse library manually</span>}
+          </div>
+        ))}
+      </div>
+    </div>}
+  </div>
 }

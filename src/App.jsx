@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import ScriptWorkspace from './ScriptWorkspace'
 import FootageFinderWorkspace from './FootageFinderWorkspace'
+import YoutubeResearchWorkspace from './YoutubeResearchWorkspace'
+import ScriptBreakdownWorkspace from './ScriptBreakdownWorkspace'
 import { EffectsWorkspace, SfxWorkspace, TextWorkspace, TransitionWorkspace } from './CreativePanels'
 import { AudioControls, VideoControls, VoiceoverWorkspace } from './ClipControls'
 import ProjectWorkspace from './ProjectWorkspace'
@@ -10,7 +12,7 @@ import ExportWorkspace from './ExportWorkspace'
 import { buildProjectDocument, clearAutosave, getRecentProjects, readAutosave, readProjectFile, rememberProject, saveProjectFile, writeAutosave } from './projectPersistence'
 
 const leftTabs = ['Media', 'Project', 'Effect Controls', 'Effects', 'Tools', 'Text', 'Properties']
-const centerTabs = ['Source', 'Script', 'Footage Finder', 'Stock', 'SFX', 'Transitions', 'Essential Sound', 'Export']
+const centerTabs = ['Source', 'Script', 'Footage Finder', 'YouTube Research', 'Script Breakdown', 'Stock', 'SFX', 'Transitions', 'Essential Sound', 'Export']
 
 const shortcutRows = [
   ['Space', 'Play / Pause preview'],
@@ -779,6 +781,15 @@ function App() {
         <FootageFinderWorkspace
           notify={notify}
           onAddFootage={(result, lineId) => addFootageReferenceToTimeline(result, lineId)}
+        />
+      )
+    }
+    if (centerTab === 'YouTube Research') return <YoutubeResearchWorkspace notify={notify} />
+    if (centerTab === 'Script Breakdown') {
+      return (
+        <ScriptBreakdownWorkspace
+          notify={notify}
+          onAddSfx={(sfx, startAt) => addSfxToTimeline(sfx, 'A3', startAt)}
         />
       )
     }

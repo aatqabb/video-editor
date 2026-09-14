@@ -34,6 +34,27 @@
 .sfx-row>button{height:22px;border-radius:3px;border:1px solid #37373c;background:#28282c;font-size:8px}
 .sfx-row>button:hover{background:#333338;color:#fff}
 .sfx-play{width:25px;padding:0}
+
+.sfx-mode-row{display:flex;gap:5px;margin-left:4px}
+.sfx-mode-row button{height:22px;padding:0 9px;border:1px solid #37373c;border-radius:3px;background:#1d1d20;color:#bdbdc2;font-size:8px;font-weight:600}
+.sfx-mode-row button.active{background:#176ec2;border-color:#257ed1;color:#fff}
+
+.sfx-smart-finder{display:flex;flex-direction:column;gap:7px}
+.sfx-smart-hint{margin:0;font-size:9px;color:#8a8a92;line-height:1.4}
+.sfx-smart-input{width:100%;min-height:70px;resize:vertical;background:#101012;border:1px solid #36363b;color:#ddd;border-radius:3px;padding:7px;font-size:10px;font-family:inherit}
+.sfx-smart-actions{display:flex}
+.sfx-smart-actions .primary{height:26px;padding:0 12px;border:1px solid #257ed1;border-radius:3px;background:#176ec2;color:#fff;font-size:9px;font-weight:600}
+.sfx-smart-actions .primary:hover{background:#2080dd}
+.sfx-smart-results{display:flex;flex-direction:column;gap:6px}
+.sfx-smart-row{display:flex;flex-direction:column;gap:4px;padding:7px 8px;border:1px solid #2f2f35;border-radius:4px;background:#1d1d20}
+.sfx-smart-text{font-size:10px;color:#e1e1e4}
+.sfx-smart-match{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.sfx-smart-chip{padding:3px 8px;border-radius:10px;font-size:8px;background:#241c14;border:1px solid #4f3a1f;color:#e0c26a}
+.sfx-smart-chip.missing{background:#241416;border-color:#4f2626;color:#d18f8f}
+.sfx-smart-match button{height:22px;padding:0 8px;border:1px solid #37373c;border-radius:3px;background:#28282c;color:#bdbdc2;font-size:8px}
+.sfx-smart-match button:hover{background:#333338;color:#fff}
+.sfx-smart-note{width:100%;font-size:8px;color:#8a8a92}
+.sfx-smart-none{font-size:9px;color:#8a8a92}
 .program-text-overlay{position:absolute;transform:translate(-50%,-50%);max-width:86%;padding:3px 6px;white-space:pre-wrap;pointer-events:none;z-index:4;line-height:1.08}
 .monitor-screen{position:relative;overflow:hidden}
 .monitor-effect-layer{position:absolute;inset:0;pointer-events:none;z-index:2}
