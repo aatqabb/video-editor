@@ -130,6 +130,14 @@ function getTextOverlayPresentation(clip, playhead) {
   }
 }
 
+function resolveVideoKeyframeValue(clip, key, baseValue, playhead) {
+  const keyframe = clip?.video?.keyframes?.[key]
+  if (!keyframe?.enabled) return baseValue
+  const duration = Math.max(.05, Number(clip.duration) || 0)
+  const progress = Math.max(0, Math.min(1, (playhead - clip.start) / duration))
+  return baseValue + (Number(keyframe.to) - baseValue) * progress
+}
+
 function App() {
   const [leftTab, setLeftTab] = useState('Media')
   const [projectName, setProjectName] = useState('Untitled Project')
@@ -922,12 +930,16 @@ function Monitor({ playing, setPlaying, notify, empty = false, timelineClips = [
   const effectStyle = buildMonitorEffectStyle(activeVideo?.effects || [])
   const videoControls = activeVideo?.video || {}
   const fitMode = videoControls.fitMode || 'Fit'
+  const resolvedPositionX = activeVideo ? resolveVideoKeyframeValue(activeVideo, 'positionX', Number(videoControls.positionX ?? 50), playhead) : 50
+  const resolvedPositionY = activeVideo ? resolveVideoKeyframeValue(activeVideo, 'positionY', Number(videoControls.positionY ?? 50), playhead) : 50
+  const resolvedScale = activeVideo ? resolveVideoKeyframeValue(activeVideo, 'scale', Math.max(1, Number(videoControls.scale) || 100), playhead) : 100
+  const resolvedOpacity = activeVideo ? resolveVideoKeyframeValue(activeVideo, 'opacity', Number(videoControls.opacity ?? 100), playhead) : 100
   const programVideoStyle = activeVideo ? {
-    left: `${videoControls.positionX ?? 50}%`,
-    top: `${videoControls.positionY ?? 50}%`,
-    width: `${Math.max(1, Number(videoControls.scale) || 100)}%`,
-    height: `${Math.max(1, Number(videoControls.scale) || 100)}%`,
-    opacity: Math.max(0, Math.min(1, (videoControls.opacity ?? 100) / 100)),
+    left: `${resolvedPositionX}%`,
+    top: `${resolvedPositionY}%`,
+    width: `${Math.max(1, resolvedScale)}%`,
+    height: `${Math.max(1, resolvedScale)}%`,
+    opacity: Math.max(0, Math.min(1, resolvedOpacity / 100)),
     transform: `translate(-50%, -50%) rotate(${Number(videoControls.rotation) || 0}deg)`,
     clipPath: `inset(${videoControls.cropTop || 0}% ${videoControls.cropRight || 0}% ${videoControls.cropBottom || 0}% ${videoControls.cropLeft || 0}%)`,
     objectFit: fitMode === 'Fill' ? 'cover' : fitMode === 'Stretch' ? 'fill' : 'contain',

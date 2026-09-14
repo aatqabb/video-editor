@@ -35,6 +35,10 @@
 .sfx-row>button:hover{background:#333338;color:#fff}
 .sfx-play{width:25px;padding:0}
 
+.text-preset-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.text-preset-row button{height:24px;padding:0 11px;border:1px solid #37373c;border-radius:12px;background:#1d1d20;color:#c7c7cc;font-size:9px}
+.text-preset-row button:hover{background:#28425d;border-color:#3d83bf;color:#fff}
+
 .sfx-mode-row{display:flex;gap:5px;margin-left:4px}
 .sfx-mode-row button{height:22px;padding:0 9px;border:1px solid #37373c;border-radius:3px;background:#1d1d20;color:#bdbdc2;font-size:8px;font-weight:600}
 .sfx-mode-row button.active{background:#176ec2;border-color:#257ed1;color:#fff}

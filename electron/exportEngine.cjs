@@ -154,6 +154,62 @@ function transitionLightLeakFilters(clip) {
   ]
 }
 
+// --- Effect Controls keyframes (animate a property from its static value to
+// an end value across the whole clip) — free, plain FFmpeg expressions, same
+// eval=frame technique already used above for transition zoom/light-leak. ---
+
+function keyframeLerpExpression(from, to, durationSeconds, startOffsetSeconds = 0) {
+  // startOffsetSeconds is 0 for filters that run inside a clip's own local
+  // filter chain (t already starts at ~0 there, same as transitionZoomFilter
+  // above), and the clip's global timeline start for filters that run at the
+  // top-level composited stage (the overlay filter's t is global there).
+  const progress = startOffsetSeconds
+    ? `min(1,max(0,(t-${startOffsetSeconds})/${Math.max(.05, durationSeconds)}))`
+    : `min(1,max(0,t/${Math.max(.05, durationSeconds)}))`
+  return `(${from}+(${to - from})*${progress})`
+}
+
+function keyframeScaleFilter(clip) {
+  const keyframe = clip.video?.keyframes?.scale
+  if (!keyframe?.enabled) return null
+  const from = Math.max(.01, (Number(clip.video?.scale) || 100) / 100)
+  const to = Math.max(.01, (Number(keyframe.to) || 100) / 100)
+  const factor = keyframeLerpExpression(from, to, seconds(clip.duration))
+  return `scale=w='max(2,iw*${factor})':h='max(2,ih*${factor})':eval=frame`
+}
+
+// colorchannelmixer's "aa" option is a plain <double> (verified against
+// `ffmpeg -h filter=colorchannelmixer` — no `eval` option, no av_expr support,
+// unlike scale's w/h), so it cannot be driven by a per-frame t-expression the
+// way scale/position can. The one case FFmpeg animates natively and reliably
+// is a full 0<->1 alpha sweep, via the `fade` filter (already used elsewhere
+// in this file for transition fades) — which covers the built-in Fade
+// In/Fade Out presets. An arbitrary partial range (e.g. 60%->30%) has no
+// verified-safe native export filter, so it stays preview-only and the
+// export keeps the clip's static starting opacity for that case.
+function keyframeOpacityFadeFilter(clip) {
+  const keyframe = clip.video?.keyframes?.opacity
+  if (!keyframe?.enabled) return null
+  const base = Math.max(0, Math.min(1, (Number(clip.video?.opacity ?? 100)) / 100))
+  const to = Math.max(0, Math.min(1, Number(keyframe.to ?? 100) / 100))
+  const duration = Math.max(.05, seconds(clip.duration))
+  if (base <= .01 && to >= .99) return `fade=t=in:st=0:d=${duration}:alpha=1`
+  if (base >= .99 && to <= .01) return `fade=t=out:st=0:d=${duration}:alpha=1`
+  return null
+}
+
+function keyframePositionFraction(clip, axisKey) {
+  // Runs at the top-level overlay stage (see buildVideoFilters below), where
+  // t is the GLOBAL composited timeline time — same domain transitionOverlayPosition
+  // already uses for slide transitions — so the clip's start must be subtracted.
+  const video = clip.video || {}
+  const base = Math.max(0, Math.min(1, (Number(video[axisKey] ?? 50)) / 100))
+  const keyframe = video.keyframes?.[axisKey]
+  if (!keyframe?.enabled) return String(base)
+  const to = Math.max(0, Math.min(1, Number(keyframe.to ?? 50) / 100))
+  return keyframeLerpExpression(base, to, seconds(clip.duration), seconds(clip.start))
+}
+
 function transitionOverlayPosition(clip, axis, baseExpression) {
   const type = String(clip.transition?.type || '')
   const start = seconds(clip.start)
@@ -188,7 +244,8 @@ function videoClipFilter(clip, inputIndex, width, height) {
     : fit === 'Fill'
       ? `scale=${targetW}:${targetH}:force_original_aspect_ratio=increase,crop=${targetW}:${targetH}`
       : `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:color=black@0`
-  const opacity = Math.max(0, Math.min(1, (Number(video.opacity ?? 100)) / 100))
+  const opacityFadeFilter = keyframeOpacityFadeFilter(clip)
+  const staticOpacity = opacityFadeFilter ? 1 : Math.max(0, Math.min(1, (Number(video.opacity ?? 100)) / 100))
   const start = seconds(clip.start)
   const speed = Math.max(.1, Number(video.speed) || 1)
   const rotation = (Number(video.rotation) || 0) * Math.PI / 180
@@ -201,8 +258,11 @@ function videoClipFilter(clip, inputIndex, width, height) {
   if (speed !== 1) filters.push(`setpts=PTS/${speed}`)
   const zoomFilter = transitionZoomFilter(clip)
   if (zoomFilter) filters.push(zoomFilter)
+  const keyframeZoomFilter = keyframeScaleFilter(clip)
+  if (keyframeZoomFilter) filters.push(keyframeZoomFilter)
   filters.push(...transitionLightLeakFilters(clip))
-  filters.push(`format=rgba,colorchannelmixer=aa=${opacity}`)
+  filters.push(`format=rgba,colorchannelmixer=aa=${staticOpacity}`)
+  if (opacityFadeFilter) filters.push(opacityFadeFilter)
   const transitionFilter = transitionFadeFilter(clip)
   if (transitionFilter) filters.push(transitionFilter)
 
@@ -240,8 +300,8 @@ function buildVideoFilters(manifest, inputMap, duration) {
     const prepared = `vprep${index}`
     lines.push(`[${inputIndex}:v]${videoClipFilter(clip, inputIndex, width, height)}[${prepared}]`)
     const nextBase = `base${index + 1}`
-    const baseX = `(W-w)*${Math.max(0, Math.min(1, (Number(clip.video?.positionX ?? 50)) / 100))}`
-    const baseY = `(H-h)*${Math.max(0, Math.min(1, (Number(clip.video?.positionY ?? 50)) / 100))}`
+    const baseX = `(W-w)*${keyframePositionFraction(clip, 'positionX')}`
+    const baseY = `(H-h)*${keyframePositionFraction(clip, 'positionY')}`
     const x = transitionOverlayPosition(clip, 'x', baseX)
     const y = transitionOverlayPosition(clip, 'y', baseY)
     const start = seconds(clip.start)
