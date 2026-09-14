@@ -1,0 +1,48 @@
+.caption-workspace{height:100%;overflow:auto;background:#171719;color:#d8d8dc;font-size:10px}
+.caption-body{padding:9px}
+.caption-hint{margin:0 0 9px;color:#8a8a92;font-size:9px;line-height:1.45}
+
+.caption-load-btn{width:100%;height:40px;border:1px dashed #3d4650;border-radius:4px;background:#1d1d20;color:#c7c7cc;font-size:10px}
+.caption-load-btn:hover{background:#232327;border-color:#4d5662;color:#fff}
+
+.caption-media-name{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;color:#c7c7cc;font-size:9px;overflow:hidden}
+.caption-swap-btn{flex-shrink:0;height:22px;padding:0 8px;border:1px solid #37373c;border-radius:3px;background:#242428;color:#aaaab0;font-size:8px}
+.caption-swap-btn:hover{background:#2d2d32;color:#fff}
+
+.caption-media-player{width:100%;max-height:180px;background:#000;border-radius:4px;margin-bottom:6px;display:block}
+.caption-media-player.audio{max-height:none;height:34px}
+
+.caption-transport{display:flex;align-items:center;gap:6px;margin-bottom:9px}
+.caption-transport button{height:25px;padding:0 9px;border:1px solid #37373c;border-radius:3px;background:#242428;color:#c7c7cc;font-size:9px}
+.caption-transport button:hover{background:#2d2d32;color:#fff}
+.caption-time{margin-left:auto;font-family:Consolas,monospace;color:#9999a0;font-size:9px}
+
+.caption-draft-row{display:flex;gap:5px;margin-bottom:4px}
+.caption-draft-input{flex:1;height:29px;background:#101012;border:1px solid #36363b;color:#e5e5e8;border-radius:3px;padding:0 8px;font-size:10px}
+.caption-draft-row .primary{height:29px;padding:0 12px;border:1px solid #257ed1;border-radius:3px;background:#176ec2;color:#fff;font-size:9px;font-weight:600}
+.caption-draft-row .primary:hover{background:#2080dd}
+.caption-pending-hint{display:block;color:#e0c26a;font-size:8.5px;margin-bottom:9px}
+
+.caption-ai-box{margin:10px 0;padding:8px;border:1px solid #2f2f35;border-radius:4px;background:#1a1a1d}
+.caption-ai-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.caption-ai-row select{height:27px;background:#101012;border:1px solid #36363b;color:#ddd;border-radius:3px;padding:0 6px;flex:1;min-width:150px}
+.caption-ai-btn{height:27px;padding:0 10px;border:1px solid #3d2f6e;border-radius:3px;background:#241c47;color:#d8c8ff;font-size:9px;font-weight:600;white-space:nowrap}
+.caption-ai-btn:hover:not(:disabled){background:#2d2358}
+.caption-ai-btn:disabled{opacity:.6}
+.caption-ai-hint{display:block;color:#8a8a92;font-size:8.5px;line-height:1.4}
+.caption-ai-status{display:block;color:#8fc7ff;font-size:8.5px;margin-top:5px}
+
+.caption-list-toolbar{display:flex;align-items:center;gap:6px;margin:12px 0 6px;padding-top:9px;border-top:1px solid #2b2b2f}
+.caption-list-toolbar button{height:22px;padding:0 8px;border:1px solid #37373c;border-radius:3px;background:#242428;color:#aaaab0;font-size:8px}
+.caption-list-toolbar button:hover{background:#2d2d32;color:#fff}
+
+.caption-list{display:flex;flex-direction:column;gap:5px;margin-bottom:9px}
+.caption-row{display:grid;grid-template-columns:1fr 22px;gap:5px;padding:7px;border:1px solid #2f2f35;border-radius:4px;background:#1d1d20}
+.caption-row-times{grid-column:1/2;display:flex;align-items:center;gap:5px;margin-bottom:4px}
+.caption-row-times input{width:64px;height:22px;background:#101012;border:1px solid #36363b;color:#ddd;border-radius:2px;padding:0 5px;font-family:Consolas,monospace;font-size:8.5px}
+.caption-row-times span{color:#6f6f76}
+.caption-seek-btn{margin-left:auto;width:22px;height:22px;border:1px solid #37373c;border-radius:2px;background:#28282c;color:#bdbdc2;font-size:8px}
+.caption-seek-btn:hover{background:#333338;color:#fff}
+.caption-row-text{grid-column:1/2;width:100%;min-height:34px;resize:vertical;background:#101012;border:1px solid #36363b;color:#e5e5e8;border-radius:2px;padding:5px;font-size:9.5px;line-height:1.3}
+.caption-delete-btn{grid-column:2/3;grid-row:1/3;align-self:start;width:22px;height:22px;border:1px solid #4f2626;border-radius:2px;background:#241416;color:#d18f8f;font-size:9px}
+.caption-delete-btn:hover{background:#341a1c;color:#fff}

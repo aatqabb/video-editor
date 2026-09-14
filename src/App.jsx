@@ -4,6 +4,7 @@ import ScriptWorkspace from './ScriptWorkspace'
 import FootageFinderWorkspace from './FootageFinderWorkspace'
 import YoutubeResearchWorkspace from './YoutubeResearchWorkspace'
 import ScriptBreakdownWorkspace from './ScriptBreakdownWorkspace'
+import CaptionWorkspace from './CaptionWorkspace'
 import { EffectsWorkspace, SfxWorkspace, TextWorkspace, TransitionWorkspace } from './CreativePanels'
 import { AudioControls, VideoControls, VoiceoverWorkspace } from './ClipControls'
 import ProjectWorkspace from './ProjectWorkspace'
@@ -12,7 +13,7 @@ import ExportWorkspace from './ExportWorkspace'
 import { buildProjectDocument, clearAutosave, getRecentProjects, readAutosave, readProjectFile, rememberProject, saveProjectFile, writeAutosave } from './projectPersistence'
 
 const leftTabs = ['Media', 'Project', 'Effect Controls', 'Effects', 'Tools', 'Text', 'Properties']
-const centerTabs = ['Source', 'Script', 'Footage Finder', 'YouTube Research', 'Script Breakdown', 'Stock', 'SFX', 'Transitions', 'Essential Sound', 'Export']
+const centerTabs = ['Source', 'Script', 'Footage Finder', 'YouTube Research', 'Script Breakdown', 'Captions', 'Stock', 'SFX', 'Transitions', 'Essential Sound', 'Export']
 
 const shortcutRows = [
   ['Space', 'Play / Pause preview'],
@@ -466,6 +467,35 @@ function App() {
     notify(`${sfx.name} added to ${track.id}`)
   }
 
+  const addCaptionsToTimeline = (segments) => {
+    const track = firstUnlockedTrack('video', 'V4') || firstUnlockedTrack('video', 'V3')
+    if (!track) return notify('Unlock a video track before adding captions')
+    const captionStyle = {
+      fontSize: 40, color: '#ffffff', background: '#000000b3', align: 'center', bold: false, italic: false, underline: false,
+      x: 50, y: 88, animationIn: 'Fade In', animationOut: 'Fade Out', animationDuration: .3,
+    }
+    const newClips = segments
+      .filter((segment) => segment.text && segment.text.trim())
+      .map((segment, index) => {
+        const duration = Math.max(.4, (Number(segment.end) || 0) - (Number(segment.start) || 0))
+        return {
+          id: `caption-${Date.now()}-${index}`,
+          trackId: track.id,
+          name: segment.text.trim().slice(0, 40) || 'Caption',
+          type: 'video',
+          kind: 'text',
+          start: Math.max(0, Math.min(TIMELINE_SECONDS - duration, Number(segment.start) || 0)),
+          duration,
+          color: 'title',
+          text: segment.text.trim(),
+          textStyle: { ...captionStyle, duration },
+        }
+      })
+    if (!newClips.length) return notify('No caption text to add')
+    commitClips((current) => [...current, ...newClips])
+    notify(`${newClips.length} caption(s) added to ${track.id}`)
+  }
+
   const addStockToTimeline = (result, sourceLineId, targetTrackId = 'V1', startAt = playhead) => {
     const preferredTrack = tracks.find((track) => track.id === targetTrackId && track.type === 'video' && !track.locked)
       || tracks.find((track) => track.type === 'video' && !track.locked)
@@ -801,6 +831,7 @@ function App() {
         />
       )
     }
+    if (centerTab === 'Captions') return <CaptionWorkspace notify={notify} onAddCaptions={addCaptionsToTimeline} />
     if (centerTab === 'Stock') return <OptionGrid title="PEXELS + PIXABAY" options={['Search Videos', 'Preview Result 1', 'Preview Result 2', 'Preview Result 3', 'Download', 'Drag to Timeline']} onClick={notify} />
     if (centerTab === 'SFX') return <SfxWorkspace onAddSfx={(sfx) => addSfxToTimeline(sfx)} notify={notify} />
     if (centerTab === 'Transitions') return <TransitionWorkspace onApply={applyTransition} notify={notify} />

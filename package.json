@@ -32,6 +32,7 @@
     "package:win": "npm run generate:icon && npm run prepare:ffmpeg:win && npm run build && npx --yes electron-builder@26.0.12 --win nsis --x64"
   },
   "dependencies": {
+    "@xenova/transformers": "^2.17.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
