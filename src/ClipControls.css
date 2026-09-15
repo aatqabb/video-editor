@@ -1,4 +1,6 @@
 .clip-controls-panel,.voiceover-workspace{height:100%;overflow:auto;padding:0;background:#171719;color:#d8d8dc;font-size:10px}
+.clip-controls-panel button,.clip-controls-panel select,.clip-controls-panel input,.voiceover-workspace button{transition:background-color .12s ease,border-color .12s ease,color .12s ease}
+.clip-controls-panel button:focus-visible,.clip-controls-panel select:focus-visible,.clip-controls-panel input:focus-visible{outline:2px solid #4d9be8;outline-offset:1px}
 .clip-controls-empty{padding:15px;color:#77777f;font-size:10px;line-height:1.45}
 .clip-controls-heading{height:34px;display:flex;align-items:center;gap:7px;padding:0 8px;background:#1b1b1e;border-bottom:1px solid #303034;position:sticky;top:0;z-index:8;box-shadow:0 1px 0 rgba(0,0,0,.25)}
 .clip-controls-heading>div{display:flex;align-items:baseline;gap:6px;min-width:0}
@@ -36,6 +38,7 @@
 .effect-footer-actions button{flex:1;min-width:90px;height:27px;border:1px solid #3a3a40;background:#222226;color:#9999a1;border-radius:2px;font-size:9px}
 .effect-footer-actions button:hover{background:#2b2b30;color:#fff;border-color:#4a4a51}
 
+.color-grade-hint{color:#77777f;font-size:8.5px;line-height:1.4;margin:6px 0 0}
 .video-preset-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
 .video-preset-grid button{min-height:36px;background:#202024;border:1px solid #34343a;border-radius:3px;padding:5px;font-size:9px;line-height:1.25;color:#c7c7cc}
 .video-preset-grid button:hover{background:#2c2c31;border-color:#4d5662;color:#fff}
@@ -45,6 +48,8 @@
 .keyframe-row:first-of-type{border-top:0;padding-top:0}
 .keyframe-toggle{display:flex;align-items:center;gap:6px;color:#c7c7cc;font-size:9.5px}
 .keyframe-toggle input{accent-color:#4d9be8}
+.keyframe-easing-row{display:grid;grid-template-columns:70px minmax(72px,1fr);align-items:center;gap:7px;min-height:27px;color:#9999a0;margin-top:2px}
+.keyframe-easing-row select{height:24px;background:#101012;border:1px solid #35353a;color:#ddd;border-radius:2px;padding:0 5px;font-size:9px}
 .voiceover-workspace{padding:0 7px 7px}
 .voiceover-workspace .clip-controls-heading{margin:0 -7px 8px}
 .voiceover-actions{display:grid;gap:6px}
