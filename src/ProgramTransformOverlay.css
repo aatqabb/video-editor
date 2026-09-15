@@ -1,15 +1,33 @@
 .monitor-screen.program{position:relative;overflow:hidden}
-.program-video-layer{position:absolute;cursor:pointer;will-change:width,height;transform-origin:center center}
+.program-video-layer{position:absolute;cursor:move;will-change:width,height;transform-origin:center center}
+/* ClipControls.css ships .program-video-layer{pointer-events:none} (it was
+   never meant to be clicked directly there — selection used to happen via a
+   different element). That rule and this one have equal specificity, so
+   whichever file's JS module is evaluated later wins the cascade regardless
+   of what we write here — in practice ClipControls.css's none was winning,
+   silently swallowing every click/drag meant for startVideoMove. Scoping
+   this to two classes outranks that plain single-class selector outright,
+   the same fix already applied below to .program-text-overlay. */
+.monitor-screen .program-video-layer{pointer-events:auto}
 .program-video-layer>video,.program-video-layer>img{display:block;width:100%;height:100%;object-fit:inherit;pointer-events:none}
-.program-video-selected{outline:1px solid rgba(87,166,255,.95);outline-offset:0}
-.program-transform-box{position:absolute;inset:0;z-index:20;border:1px solid #58a6ff;pointer-events:none}
-.program-transform-size{position:absolute;left:50%;top:-25px;transform:translateX(-50%);background:rgba(13,13,15,.92);border:1px solid #58a6ff;border-radius:3px;color:#dbeeff;font:10px/18px Segoe UI,Arial,sans-serif;padding:0 6px;white-space:nowrap;pointer-events:none}
-.program-resize-handle{position:absolute;width:12px;height:12px;padding:0;background:#f7fbff;border:2px solid #2f8cff;border-radius:2px;pointer-events:auto;z-index:21}
-.program-resize-handle.top-left{left:-6px;top:-6px;cursor:nwse-resize}
-.program-resize-handle.top-right{right:-6px;top:-6px;cursor:nesw-resize}
-.program-resize-handle.bottom-left{left:-6px;bottom:-6px;cursor:nesw-resize}
-.program-resize-handle.bottom-right{right:-6px;bottom:-6px;cursor:nwse-resize}
-.program-resize-handle:hover{background:#d8ecff}
+/* The selected state used to also draw its own solid outline here, doubled
+   up with the dashed .program-transform-box border below (both render at
+   once when selected) — two overlapping rectangles read as cluttered next
+   to a real NLE's single clean selection box, so this is now the only
+   border a selected clip/text gets. */
+/* Tuned to sit closer to how a professional NLE (e.g. Premiere's Program
+   Monitor) draws a selected clip: a hairline dashed box with small, plain
+   square handles — not the bulkier bordered buttons + always-on size
+   readout this started as, which read as "messy" next to that reference. */
+.program-transform-box{position:absolute;inset:0;z-index:20;border:1px dashed #58a6ff;pointer-events:none}
+.program-transform-size{position:absolute;left:50%;top:-22px;transform:translateX(-50%);background:rgba(13,13,15,.92);border:1px solid #58a6ff;border-radius:2px;color:#dbeeff;font:10px/16px Segoe UI,Arial,sans-serif;padding:0 5px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .1s ease}
+.program-transform-box.is-active .program-transform-size{opacity:1}
+.program-resize-handle{position:absolute;width:8px;height:8px;padding:0;background:#2f8cff;border:1px solid #f7fbff;border-radius:1px;pointer-events:auto;z-index:21}
+.program-resize-handle.top-left{left:-4px;top:-4px;cursor:nwse-resize}
+.program-resize-handle.top-right{right:-4px;top:-4px;cursor:nesw-resize}
+.program-resize-handle.bottom-left{left:-4px;bottom:-4px;cursor:nesw-resize}
+.program-resize-handle.bottom-right{right:-4px;bottom:-4px;cursor:nwse-resize}
+.program-resize-handle:hover{background:#58a6ff}
 
 /* Text/caption/lower-third overlays ship with pointer-events:none in
    CreativePanels.css (so they never block clicks to the video below) —
@@ -18,5 +36,3 @@
    to .transition-badge), letting a caption be clicked/selected directly
    on the preview like a video clip already can be. */
 .monitor-screen .program-text-overlay{pointer-events:auto;cursor:move}
-.monitor-screen .program-text-overlay.program-text-selected{outline:1px dashed rgba(87,166,255,.75);outline-offset:3px}
-.program-text-overlay .program-transform-box{cursor:default}
