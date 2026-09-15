@@ -614,11 +614,43 @@ function App() {
   const firstUnlockedTrack = (type, preferredId) => tracks.find((track) => track.id === preferredId && track.type === type && !track.locked)
     || tracks.find((track) => track.type === type && !track.locked)
 
+  // Adding a text/caption/lower-third used to always land on a single fixed
+  // track (V3), at the playhead. If you added a second one without moving
+  // the playhead, it landed exactly on top of the first — and this app's
+  // "new clip overwrites whatever it overlaps on the same track" rule (the
+  // same rule that makes dropping B-roll overwrite the old B-roll) would
+  // silently delete the earlier text layer entirely. From the user's side
+  // that looked like "editing/recoloring an existing caption doesn't work"
+  // — the caption they were trying to edit was actually already gone.
+  // These helpers find a video track that's genuinely free for the new
+  // clip's time range, falling back to creating a brand new track, so text
+  // layers can never eat each other just for sharing a start time.
+  const trackHasClipAt = (trackId, start, duration) => clips.some((clip) => {
+    if (clip.trackId !== trackId) return false
+    const clipEnd = clip.start + clip.duration
+    return start < clipEnd - 0.0001 && start + duration > clip.start + 0.0001
+  })
+
+  const freeVideoTrackFor = (start, duration, preferredId) => {
+    const preferred = preferredId && tracks.find((track) => track.id === preferredId && track.type === 'video' && !track.locked)
+    if (preferred && !trackHasClipAt(preferred.id, start, duration)) return preferred
+    return tracks.find((track) => track.type === 'video' && !track.locked && !trackHasClipAt(track.id, start, duration)) || null
+  }
+
+  const createVideoTrack = () => {
+    const numbers = tracks
+      .filter((track) => track.type === 'video')
+      .map((track) => Number.parseInt(String(track.id).replace(/\D/g, ''), 10))
+      .filter(Number.isFinite)
+    const track = { id: `V${Math.max(0, ...numbers) + 1}`, type: 'video', locked: false, hidden: false, muted: false, solo: false }
+    setTracks((current) => [track, ...current])
+    return track
+  }
+
   const addTextLayer = (draft) => {
-    const track = firstUnlockedTrack('video', 'V3')
-    if (!track) return notify('Unlock a video track before adding text')
-    const id = `text-${Date.now()}`
     const duration = Math.max(.5, Number(draft.duration) || 5)
+    const track = freeVideoTrackFor(playhead, duration, 'V3') || createVideoTrack()
+    const id = `text-${Date.now()}`
     commitClips((current) => [...current, {
       id, trackId: track.id, name: draft.text || 'Text', type: 'video', kind: 'text', start: playhead, duration, color: 'title',
       text: draft.text || 'Text', textStyle: { ...draft },
@@ -710,31 +742,37 @@ function App() {
   }
 
   const addCaptionsToTimeline = (segments, styleOverride = null) => {
-    const track = firstUnlockedTrack('video', 'V4') || firstUnlockedTrack('video', 'V3')
-    if (!track) return notify('Unlock a video track before adding captions')
     const captionStyle = {
       fontSize: 40, color: '#ffffff', background: '#000000b3', align: 'center', bold: false, italic: false, underline: false,
       x: 50, y: 88, animationIn: 'Fade In', animationOut: 'Fade Out', animationDuration: .3, wrap: true,
       ...styleOverride,
     }
-    const newClips = segments
-      .filter((segment) => segment.text && segment.text.trim())
-      .map((segment, index) => {
-        const duration = Math.max(.4, (Number(segment.end) || 0) - (Number(segment.start) || 0))
-        return {
-          id: `caption-${Date.now()}-${index}`,
-          trackId: track.id,
-          name: segment.text.trim().slice(0, 40) || 'Caption',
-          type: 'video',
-          kind: 'text',
-          start: Math.max(0, Math.min(TIMELINE_SECONDS - duration, Number(segment.start) || 0)),
-          duration,
-          color: 'title',
-          text: segment.text.trim(),
-          textStyle: { ...captionStyle, duration },
-        }
-      })
-    if (!newClips.length) return notify('No caption text to add')
+    const validSegments = segments.filter((segment) => segment.text && segment.text.trim())
+    if (!validSegments.length) return notify('No caption text to add')
+    // Check the whole batch's span at once (not just V4/V3) so importing a
+    // caption file never silently overwrites a lower-third or other text
+    // layer someone already placed — see addTextLayer above for why this
+    // matters.
+    const batchStart = Math.min(...validSegments.map((segment) => Number(segment.start) || 0))
+    const batchEnd = Math.max(...validSegments.map((segment) => Math.max(Number(segment.end) || 0, (Number(segment.start) || 0) + 0.4)))
+    const track = freeVideoTrackFor(batchStart, batchEnd - batchStart, 'V4')
+      || freeVideoTrackFor(batchStart, batchEnd - batchStart, 'V3')
+      || createVideoTrack()
+    const newClips = validSegments.map((segment, index) => {
+      const duration = Math.max(.4, (Number(segment.end) || 0) - (Number(segment.start) || 0))
+      return {
+        id: `caption-${Date.now()}-${index}`,
+        trackId: track.id,
+        name: segment.text.trim().slice(0, 40) || 'Caption',
+        type: 'video',
+        kind: 'text',
+        start: Math.max(0, Math.min(TIMELINE_SECONDS - duration, Number(segment.start) || 0)),
+        duration,
+        color: 'title',
+        text: segment.text.trim(),
+        textStyle: { ...captionStyle, duration },
+      }
+    })
     commitClips((current) => [...current, ...newClips])
     notify(`${newClips.length} caption(s) added to ${track.id}`)
   }

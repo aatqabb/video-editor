@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { splitScriptText } from './stockApi'
 import { getLibrarySfx, suggestSfxForLine } from './sfxSuggestions'
 import './CreativePanels.css'
@@ -68,6 +68,39 @@ export function TextWorkspace({ selectedTextClip, onAddText, onUpdateText, notif
     text, fontFamily, fontSize, color, background: showBackground ? background : '#00000000', align, bold, italic, underline, wrap,
     x, y, animationIn, animationOut, animationDuration, duration, fontFilePath: customFontPaths[fontFamily] || null,
   }
+
+  // Without this, the form kept showing whatever was last typed/picked
+  // locally instead of the clip you just clicked — so re-selecting an
+  // existing caption/lower-third to change its color showed a stale color,
+  // and "Apply to Selected" would then overwrite that clip's real text,
+  // position, animation, etc. with those stale leftover values too. Keying
+  // on the clip id (not the whole object) means this only re-syncs when the
+  // selection actually changes, not on every keystroke while editing it.
+  useEffect(() => {
+    if (!selectedTextClip) return
+    const style = selectedTextClip.textStyle || {}
+    const bg = style.background || '#00000000'
+    const hasBackground = bg !== '#00000000' && bg !== 'transparent'
+    setText(selectedTextClip.text || selectedTextClip.name || 'Your text here')
+    setFontFamily(style.fontFamily || 'Segoe UI')
+    setFontSize(Number(style.fontSize) || 64)
+    setColor(style.color || '#ffffff')
+    setShowBackground(hasBackground)
+    setBackground(hasBackground ? bg : '#00000000')
+    setAlign(style.align || 'center')
+    setBold(Boolean(style.bold))
+    setItalic(Boolean(style.italic))
+    setUnderline(Boolean(style.underline))
+    setWrap(style.wrap !== false)
+    setX(Number(style.x ?? 50))
+    setY(Number(style.y ?? 50))
+    setAnimationIn(style.animationIn || 'Fade In')
+    setAnimationOut(style.animationOut || 'Fade Out')
+    setAnimationDuration(Number(style.animationDuration) || .45)
+    setDuration(Number(selectedTextClip.duration) || 5)
+    if (style.fontFilePath) setCustomFontPaths((paths) => ({ ...paths, [style.fontFamily]: style.fontFilePath }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTextClip?.id])
 
   const loadPcFonts = async () => {
     if (!window.queryLocalFonts) return notify('This browser does not expose installed fonts; common fonts are available')

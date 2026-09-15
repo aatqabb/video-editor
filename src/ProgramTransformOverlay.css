@@ -10,3 +10,13 @@
 .program-resize-handle.bottom-left{left:-6px;bottom:-6px;cursor:nesw-resize}
 .program-resize-handle.bottom-right{right:-6px;bottom:-6px;cursor:nwse-resize}
 .program-resize-handle:hover{background:#d8ecff}
+
+/* Text/caption/lower-third overlays ship with pointer-events:none in
+   CreativePanels.css (so they never block clicks to the video below) —
+   this rescopes it to a two-class selector so it wins regardless of CSS
+   import order (see PreviewTransitionFixes.css for the same fix applied
+   to .transition-badge), letting a caption be clicked/selected directly
+   on the preview like a video clip already can be. */
+.monitor-screen .program-text-overlay{pointer-events:auto;cursor:move}
+.monitor-screen .program-text-overlay.program-text-selected{outline:1px dashed rgba(87,166,255,.75);outline-offset:3px}
+.program-text-overlay .program-transform-box{cursor:default}
