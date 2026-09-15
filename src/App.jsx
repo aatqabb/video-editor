@@ -12,8 +12,19 @@ import MediaLibrary from './MediaLibrary'
 import ExportWorkspace from './ExportWorkspace'
 import { buildProjectDocument, clearAutosave, getRecentProjects, readAutosave, readProjectFile, rememberProject, saveProjectFile, writeAutosave } from './projectPersistence'
 
-const leftTabs = ['Media', 'Project', 'Effect Controls', 'Effects', 'Tools', 'Text', 'Properties']
-const centerTabs = ['Source', 'Script', 'Footage Finder', 'YouTube Research', 'Script Breakdown', 'Captions', 'Stock', 'SFX', 'Transitions', 'Essential Sound', 'Export']
+// Kept flat (not split into primary/more) since these two lists are the
+// single source of truth for which tab shows which panel further down.
+// The tab strip itself decides what's "primary" vs tucked under "More" —
+// see leftTabsPrimary/leftTabsMore and centerTabsPrimary/centerTabsMore.
+// "Properties" (an exact duplicate of "Effect Controls") and "Stock" (a
+// non-functional placeholder superseded by the real "Footage Finder"
+// panel) were removed outright rather than hidden — keeping dead/duplicate
+// tabs in a "More" menu would just relocate the clutter. "Essential Sound"
+// was renamed to "Voice / Music" to match what the panel actually is.
+const leftTabsPrimary = ['Media', 'Effect Controls', 'Effects', 'Text']
+const leftTabsMore = ['Project', 'Tools']
+const centerTabsPrimary = ['Source', 'Captions', 'SFX', 'Transitions', 'Voice / Music', 'Export']
+const centerTabsMore = ['Script', 'Footage Finder', 'Stock', 'YouTube Research', 'Script Breakdown']
 
 const shortcutRows = [
   ['Space', 'Play / Pause preview'],
@@ -78,6 +89,34 @@ function buildMonitorEffectStyle(effects = []) {
   return { filter: filters.join(' ') || undefined, boxShadow: boxShadow || undefined }
 }
 
+// CSS has no real temperature/tint/vibrance filter, so this is only a rough
+// live-preview stand-in — the actual export uses real FFmpeg filters
+// (colortemperature, a channel-scale tint, and vibrance — see
+// exportEngine.cjs) verified via real renders, which is what the exported
+// video actually reflects.
+function buildColorGradeFilter(video = {}) {
+  const temperature = Math.max(-100, Math.min(100, Number(video.temperature) || 0))
+  const tint = Math.max(-100, Math.min(100, Number(video.tint) || 0))
+  const vibrance = Math.max(-100, Math.min(100, Number(video.vibrance) || 0))
+  const parts = []
+  if (temperature) parts.push(`sepia(${Math.min(.5, Math.abs(temperature) / 200)}) hue-rotate(${temperature > 0 ? -Math.abs(temperature) * .12 : Math.abs(temperature) * .12}deg)`)
+  if (tint) parts.push(`hue-rotate(${tint > 0 ? Math.abs(tint) * .25 : -Math.abs(tint) * .25}deg) saturate(${1 + Math.abs(tint) / 300})`)
+  if (vibrance) parts.push(`saturate(${Math.max(.2, 1 + vibrance / 130)})`)
+  return parts.join(' ')
+}
+
+// Real spring-overshoot curves for "Bounce" — distinct from "Pop", which
+// just eases up to full size with no overshoot. Entrance grows past 100%
+// then settles back; exit grows a little first, then shrinks away.
+function bounceInScale(p) {
+  if (p < .7) return .5 + .65 * (p / .7)
+  return 1.15 - .15 * ((p - .7) / .3)
+}
+function bounceOutScale(q) {
+  if (q < .3) return 1 + .15 * (q / .3)
+  return 1.15 * (1 - (q - .3) / .7)
+}
+
 function getTextOverlayPresentation(clip, playhead) {
   const style = clip.textStyle || {}
   const local = Math.max(0, playhead - clip.start)
@@ -97,9 +136,11 @@ function getTextOverlayPresentation(clip, playhead) {
     if (name.includes('Slide Down')) dy = -45 * amount
     if (name.includes('Slide Left')) dx = 65 * amount
     if (name.includes('Slide Right')) dx = -65 * amount
-    if (name.includes('Zoom In')) scale = .65 + .35 * p
-    if (name.includes('Zoom Out') || name.includes('Shrink')) scale = 1 - .35 * amount
-    if (name.includes('Pop')) scale = .65 + .35 * Math.min(1, p * 1.35)
+    if (name === 'Bounce') scale = bounceInScale(p)
+    else if (name === 'Bounce Out') scale = bounceOutScale(p)
+    else if (name.includes('Zoom In')) scale = .65 + .35 * p
+    else if (name.includes('Zoom Out') || name.includes('Shrink')) scale = 1 - .35 * amount
+    else if (name.includes('Pop')) scale = .65 + .35 * Math.min(1, p * 1.35)
     if (name.includes('Blur')) blur = 9 * amount
   }
 
@@ -109,6 +150,11 @@ function getTextOverlayPresentation(clip, playhead) {
   let displayText = clip.text || clip.name
   if (style.animationIn === 'Typewriter' && local < animDuration) {
     displayText = displayText.slice(0, Math.max(1, Math.ceil(displayText.length * local / animDuration)))
+  }
+  if (style.animationIn === 'Word Reveal' && local < animDuration) {
+    const words = displayText.split(/\s+/).filter(Boolean)
+    const count = Math.max(1, Math.ceil((words.length * local) / animDuration))
+    displayText = words.slice(0, count).join(' ')
   }
 
   return {
@@ -124,6 +170,8 @@ function getTextOverlayPresentation(clip, playhead) {
       fontWeight: style.bold ? 700 : 400,
       fontStyle: style.italic ? 'italic' : 'normal',
       textDecoration: style.underline ? 'underline' : 'none',
+      whiteSpace: style.wrap === false ? 'nowrap' : 'pre-wrap',
+      maxWidth: style.wrap === false ? 'none' : '86%',
       opacity,
       filter: blur ? `blur(${blur}px)` : undefined,
       transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px) scale(${scale})`,
@@ -131,16 +179,204 @@ function getTextOverlayPresentation(clip, playhead) {
   }
 }
 
+// Same easing curves offered in the Effect Controls keyframe UI, applied to
+// the raw 0..1 progress before interpolating — 'linear' keeps the original
+// straight-line behavior, the others reuse the same smoothstep-family math
+// already trusted elsewhere in this app (e.g. transition zoom easing).
+function applyKeyframeEasing(progress, easing) {
+  const p = Math.max(0, Math.min(1, progress))
+  if (easing === 'easeIn') return p * p
+  if (easing === 'easeOut') return 1 - (1 - p) * (1 - p)
+  if (easing === 'easeInOut') return p * p * (3 - 2 * p)
+  return p
+}
+
 function resolveVideoKeyframeValue(clip, key, baseValue, playhead) {
   const keyframe = clip?.video?.keyframes?.[key]
   if (!keyframe?.enabled) return baseValue
   const duration = Math.max(.05, Number(clip.duration) || 0)
-  const progress = Math.max(0, Math.min(1, (playhead - clip.start) / duration))
+  const progress = applyKeyframeEasing(Math.max(0, Math.min(1, (playhead - clip.start) / duration)), keyframe.easing)
   return baseValue + (Number(keyframe.to) - baseValue) * progress
+}
+
+// Real per-frame video preview for timeline clips, instead of one repeated
+// static thumbnail tiled at low opacity over a flat color. Frames are
+// sampled from sourceIn to sourceIn+duration — the exact range currently
+// trimmed into the timeline — so trimming a clip changes which part of the
+// source video its preview shows, matching how Premiere-style editors
+// render clip thumbnails. Cached per clip+trim-range so re-renders (e.g.
+// scrolling the timeline) don't regenerate frames already captured.
+const FILMSTRIP_CACHE = new Map()
+const FILMSTRIP_CACHE_LIMIT = 80
+// Only these clip "kind" values are backed by a real, seekable video file —
+// text overlays and YouTube reference markers also carry type:'video' but
+// have no actual source to sample frames from.
+const FILMSTRIP_ELIGIBLE_KINDS = new Set([undefined, 'local-media'])
+
+function filmstripSourceUrl(clip) {
+  return clip.remoteUrl || clip.localUrl || clip.originalUrl || ''
+}
+
+function filmstripCacheKey(clip, frameCount) {
+  const sourceIn = Number(clip.sourceIn) || 0
+  const speed = Number(clip.video?.speed) || 1
+  const duration = Number(clip.duration) || 0
+  return `${clip.id}|${filmstripSourceUrl(clip)}|${sourceIn.toFixed(2)}|${duration.toFixed(2)}|${speed.toFixed(2)}|${frameCount}`
+}
+
+function filmstripFrameCountFor(widthPx) {
+  return Math.max(2, Math.min(8, Math.round(widthPx / 70)))
+}
+
+function useClipFilmstrip(clip, frameCount) {
+  const eligible = clip.type === 'video' && FILMSTRIP_ELIGIBLE_KINDS.has(clip.kind) && !!filmstripSourceUrl(clip)
+  const key = eligible ? filmstripCacheKey(clip, frameCount) : null
+  const [frames, setFrames] = useState(() => (key ? FILMSTRIP_CACHE.get(key) || null : null))
+  const generationRef = useRef(0)
+
+  useEffect(() => {
+    if (!key) { setFrames(null); return undefined }
+    const cached = FILMSTRIP_CACHE.get(key)
+    if (cached) { setFrames(cached); return undefined }
+
+    generationRef.current += 1
+    const myGeneration = generationRef.current
+    let cancelled = false
+    let video = null
+
+    // Debounced so a trim drag (which updates duration/sourceIn on every
+    // pointer move) doesn't kick off a burst of video seeks per frame —
+    // only the settled end state generates a filmstrip.
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled) return
+      video = document.createElement('video')
+      video.muted = true
+      video.playsInline = true
+      video.preload = 'auto'
+      video.crossOrigin = 'anonymous'
+      video.src = filmstripSourceUrl(clip)
+
+      const sourceIn = Math.max(0, Number(clip.sourceIn) || 0)
+      const speed = Math.max(.1, Number(clip.video?.speed) || 1)
+      const sourceSpan = Math.max(.05, (Number(clip.duration) || .1) * speed)
+
+      const seekTo = (time) => new Promise((resolve) => {
+        const onSeeked = () => { video.removeEventListener('seeked', onSeeked); resolve() }
+        video.addEventListener('seeked', onSeeked, { once: true })
+        try { video.currentTime = time } catch { resolve() }
+      })
+
+      const run = async () => {
+        try {
+          await new Promise((resolve, reject) => {
+            video.addEventListener('loadedmetadata', resolve, { once: true })
+            video.addEventListener('error', () => reject(new Error('load failed')), { once: true })
+          })
+        } catch {
+          return
+        }
+        if (cancelled || generationRef.current !== myGeneration) return
+
+        const maxSource = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : sourceIn + sourceSpan
+        const width = 96
+        const height = Math.max(24, Math.round(width * (video.videoHeight || 9) / (video.videoWidth || 16)))
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        const collected = []
+
+        for (let index = 0; index < frameCount; index += 1) {
+          if (cancelled || generationRef.current !== myGeneration) return
+          const fraction = frameCount === 1 ? 0 : index / (frameCount - 1)
+          const time = Math.min(Math.max(0, maxSource - 0.03), Math.max(0, sourceIn + fraction * sourceSpan))
+          await seekTo(time)
+          if (cancelled || generationRef.current !== myGeneration) return
+          try {
+            ctx.drawImage(video, 0, 0, width, height)
+            collected.push(canvas.toDataURL('image/jpeg', 0.6))
+          } catch {
+            collected.push('')
+          }
+        }
+
+        if (cancelled || generationRef.current !== myGeneration) return
+        if (collected.some(Boolean)) {
+          if (FILMSTRIP_CACHE.size >= FILMSTRIP_CACHE_LIMIT) {
+            const oldestKey = FILMSTRIP_CACHE.keys().next().value
+            if (oldestKey) FILMSTRIP_CACHE.delete(oldestKey)
+          }
+          FILMSTRIP_CACHE.set(key, collected)
+          setFrames(collected)
+        }
+      }
+
+      run()
+    }, 260)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeoutId)
+      if (video) { video.src = ''; video.load?.() }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, frameCount])
+
+  return frames
+}
+
+// Renders the actual used portion of a video clip's footage — a real
+// filmstrip of sampled frames for playable video, the source image for
+// image clips, and nothing extra (just the clip's solid color) for
+// non-playable clip kinds like text overlays with no thumbnail to show.
+function ClipVideoPreview({ clip, frameCount }) {
+  const frames = useClipFilmstrip(clip, frameCount)
+  if (clip.kind === 'image') {
+    return clip.thumbnail ? <span className="clip-image-preview" style={{ backgroundImage: `url(${clip.thumbnail})` }} aria-hidden="true" /> : null
+  }
+  if (frames?.length) {
+    return (
+      <span className="clip-video-filmstrip" aria-hidden="true">
+        {frames.map((frame, index) => (
+          <span key={index} className="clip-video-filmstrip-frame" style={frame ? { backgroundImage: `url(${frame})` } : undefined} />
+        ))}
+      </span>
+    )
+  }
+  return clip.thumbnail ? <span className="clip-image-preview" style={{ backgroundImage: `url(${clip.thumbnail})` }} aria-hidden="true" /> : null
 }
 
 function App() {
   const [leftTab, setLeftTab] = useState('Media')
+  // Tab strips sit inside overflow:hidden panels, so the "More" dropdown
+  // can't be a normal absolutely-positioned child of the strip — it would
+  // get clipped. Instead its position is measured from the trigger button
+  // and it's rendered fixed-position at the top level of the tree, past
+  // every clipping ancestor.
+  const [leftMoreOpen, setLeftMoreOpen] = useState(false)
+  const [centerMoreOpen, setCenterMoreOpen] = useState(false)
+  const [leftMorePos, setLeftMorePos] = useState({ top: 0, left: 0 })
+  const [centerMorePos, setCenterMorePos] = useState({ top: 0, left: 0 })
+  const leftMoreBtnRef = useRef(null)
+  const centerMoreBtnRef = useRef(null)
+  const leftMoreMenuRef = useRef(null)
+  const centerMoreMenuRef = useRef(null)
+
+  const toggleLeftMore = () => {
+    if (!leftMoreOpen && leftMoreBtnRef.current) {
+      const rect = leftMoreBtnRef.current.getBoundingClientRect()
+      setLeftMorePos({ top: rect.bottom, left: rect.left })
+    }
+    setLeftMoreOpen((value) => !value)
+  }
+
+  const toggleCenterMore = () => {
+    if (!centerMoreOpen && centerMoreBtnRef.current) {
+      const rect = centerMoreBtnRef.current.getBoundingClientRect()
+      setCenterMorePos({ top: rect.bottom, left: rect.left })
+    }
+    setCenterMoreOpen((value) => !value)
+  }
   const [projectName, setProjectName] = useState('Untitled Project')
   const [projectSettings, setProjectSettings] = useState({ aspect: '16:9', resolution: '1080p', width: 1920, height: 1080, fps: 30 })
   const [saveHandle, setSaveHandle] = useState(null)
@@ -370,7 +606,7 @@ function App() {
     const id = audioInfo.id || `audio-${Date.now()}`
     commitClips((current) => [...current, {
       id, trackId: track.id, name: audioInfo.name || 'Audio', type: 'audio', kind: audioInfo.kind || 'audio', start: Math.max(0, Math.min(TIMELINE_SECONDS - duration, startAt)), duration, sourceDuration: duration, color: audioInfo.kind === 'voiceover' ? 'green' : 'yellow',
-      localUrl: audioInfo.url || null, audio: { volume: 100, fadeIn: 0, fadeOut: 0 },
+      localUrl: audioInfo.url || null, sourcePath: audioInfo.sourcePath || '', audio: { volume: 100, fadeIn: 0, fadeOut: 0 },
     }])
     setSelectedClipIds([id])
   }
@@ -459,20 +695,27 @@ function App() {
     if (!track) return notify('Unlock an audio track before adding SFX')
     const duration = Math.max(.1, Math.min(TIMELINE_SECONDS, Number(sfx.duration) || 1))
     const id = `sfx-${sfx.id}-${Date.now()}`
+    // Built-in SFX ship as real files inside the app (dist/sfx/*.wav) — resolve
+    // that real path for export via the desktop bridge. A custom-imported SFX
+    // already carries its own sourcePath (captured in CreativePanels.jsx at
+    // file-pick time, the same webUtils.getPathForFile technique used for
+    // custom fonts/media, since a blob: URL alone has no real path once picked).
+    const sourcePath = sfx.sourcePath || (sfx.packaged ? window.videoEditorDesktop?.resolveAppAsset?.(sfx.url) || '' : '')
     commitClips((current) => [...current, {
       id, trackId: track.id, name: sfx.name, type: 'audio', kind: 'sfx', start: Math.max(0, Math.min(TIMELINE_SECONDS - duration, startAt)), duration, color: 'orange',
-      sfxId: sfx.id, localUrl: sfx.url || null, customSfx: Boolean(sfx.custom),
+      sfxId: sfx.id, localUrl: sfx.url || null, sourcePath, customSfx: Boolean(sfx.custom),
     }])
     setSelectedClipIds([id])
     notify(`${sfx.name} added to ${track.id}`)
   }
 
-  const addCaptionsToTimeline = (segments) => {
+  const addCaptionsToTimeline = (segments, styleOverride = null) => {
     const track = firstUnlockedTrack('video', 'V4') || firstUnlockedTrack('video', 'V3')
     if (!track) return notify('Unlock a video track before adding captions')
     const captionStyle = {
       fontSize: 40, color: '#ffffff', background: '#000000b3', align: 'center', bold: false, italic: false, underline: false,
-      x: 50, y: 88, animationIn: 'Fade In', animationOut: 'Fade Out', animationDuration: .3,
+      x: 50, y: 88, animationIn: 'Fade In', animationOut: 'Fade Out', animationDuration: .3, wrap: true,
+      ...styleOverride,
     }
     const newClips = segments
       .filter((segment) => segment.text && segment.text.trim())
@@ -670,6 +913,15 @@ function App() {
   }
 
   useEffect(() => {
+    const onClickOutside = (event) => {
+      if (leftMoreOpen && !leftMoreBtnRef.current?.contains(event.target) && !leftMoreMenuRef.current?.contains(event.target)) setLeftMoreOpen(false)
+      if (centerMoreOpen && !centerMoreBtnRef.current?.contains(event.target) && !centerMoreMenuRef.current?.contains(event.target)) setCenterMoreOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [leftMoreOpen, centerMoreOpen])
+
+  useEffect(() => {
     const onKeyDown = (event) => {
       const tag = event.target?.tagName?.toLowerCase()
       if (['input', 'textarea', 'select'].includes(tag)) return
@@ -750,7 +1002,7 @@ function App() {
       )
     }
 
-    if (leftTab === 'Effect Controls' || leftTab === 'Properties') {
+    if (leftTab === 'Effect Controls') {
       if (selectedClip?.type === 'audio') return <AudioControls clip={selectedClip} onUpdate={updateClipControls} />
       return <VideoControls clip={selectedClip} onUpdate={updateClipControls} notify={notify} />
     }
@@ -835,6 +1087,7 @@ function App() {
     if (centerTab === 'Stock') return <OptionGrid title="PEXELS + PIXABAY" options={['Search Videos', 'Preview Result 1', 'Preview Result 2', 'Preview Result 3', 'Download', 'Drag to Timeline']} onClick={notify} />
     if (centerTab === 'SFX') return <SfxWorkspace onAddSfx={(sfx) => addSfxToTimeline(sfx)} notify={notify} />
     if (centerTab === 'Transitions') return <TransitionWorkspace onApply={applyTransition} notify={notify} />
+    // 'Voice / Music' (previously mislabeled "Essential Sound") falls through here.
     return <VoiceoverWorkspace onAddAudio={(audioInfo, trackId) => addAudioToTimeline(audioInfo, trackId)} notify={notify} />
   }
 
@@ -867,9 +1120,17 @@ function App() {
         <section className="upper-workspace" style={{ height: `${100 - timelineHeight}%` }}>
           <section className="panel left-panel" style={{ width: `${leftWidth}%` }}>
             <div className="tab-strip">
-              {leftTabs.map((tab) => (
+              {leftTabsPrimary.map((tab) => (
                 <button key={tab} className={leftTab === tab ? 'active' : ''} onClick={() => setLeftTab(tab)}>{tab}</button>
               ))}
+              <button
+                ref={leftMoreBtnRef}
+                className={`tab-more-trigger ${leftTabsMore.includes(leftTab) ? 'active' : ''}`}
+                onClick={toggleLeftMore}
+                aria-expanded={leftMoreOpen}
+              >
+                More {leftMoreOpen ? '▴' : '▾'}
+              </button>
             </div>
             <div className="panel-body">{renderLeftBody()}</div>
           </section>
@@ -878,9 +1139,17 @@ function App() {
 
           <section className="panel center-panel">
             <div className="tab-strip">
-              {centerTabs.map((tab) => (
+              {centerTabsPrimary.map((tab) => (
                 <button key={tab} className={centerTab === tab ? 'active' : ''} onClick={() => setCenterTab(tab)}>{tab}</button>
               ))}
+              <button
+                ref={centerMoreBtnRef}
+                className={`tab-more-trigger ${centerTabsMore.includes(centerTab) ? 'active' : ''}`}
+                onClick={toggleCenterMore}
+                aria-expanded={centerMoreOpen}
+              >
+                More {centerMoreOpen ? '▴' : '▾'}
+              </button>
             </div>
             <div className="panel-body center-body">{renderCenterBody()}</div>
           </section>
@@ -948,7 +1217,33 @@ function App() {
         </div>
       )}
 
+      {leftMoreOpen && (
+        <div className="tab-more-menu" ref={leftMoreMenuRef} style={{ top: leftMorePos.top, left: leftMorePos.left }}>
+          {leftTabsMore.map((tab) => (
+            <button key={tab} className={leftTab === tab ? 'active' : ''} onClick={() => { setLeftTab(tab); setLeftMoreOpen(false) }}>{tab}</button>
+          ))}
+        </div>
+      )}
+
+      {centerMoreOpen && (
+        <div className="tab-more-menu" ref={centerMoreMenuRef} style={{ top: centerMorePos.top, left: centerMorePos.left }}>
+          {centerTabsMore.map((tab) => (
+            <button key={tab} className={centerTab === tab ? 'active' : ''} onClick={() => { setCenterTab(tab); setCenterMoreOpen(false) }}>{tab}</button>
+          ))}
+        </div>
+      )}
+
       {toast && <div className="toast">{toast}</div>}
+    </div>
+  )
+}
+
+function OptionGrid({ title, options, onClick }) {
+  return (
+    <div className="option-panel">
+      <div className="section-label">{title}</div>
+      <input className="option-search" placeholder={`Search ${title.toLowerCase()}`} />
+      <div className="option-grid">{options.map((option) => <button key={option} onClick={() => onClick(option)}>{option}</button>)}</div>
     </div>
   )
 }
@@ -958,20 +1253,26 @@ function Monitor({ playing, setPlaying, notify, empty = false, timelineClips = [
   const activeClips = empty ? [] : timelineClips.filter((clip) => playhead >= clip.start && playhead < clip.start + clip.duration)
   const textClips = activeClips.filter((clip) => clip.kind === 'text')
   const activeVideo = activeClips.find((clip) => clip.type === 'video' && clip.kind !== 'text')
-  const effectStyle = buildMonitorEffectStyle(activeVideo?.effects || [])
+  const baseEffectStyle = buildMonitorEffectStyle(activeVideo?.effects || [])
   const videoControls = activeVideo?.video || {}
+  const colorGradeFilter = buildColorGradeFilter(videoControls)
+  const effectStyle = {
+    ...baseEffectStyle,
+    filter: [baseEffectStyle.filter, colorGradeFilter].filter(Boolean).join(' ') || undefined,
+  }
   const fitMode = videoControls.fitMode || 'Fit'
   const resolvedPositionX = activeVideo ? resolveVideoKeyframeValue(activeVideo, 'positionX', Number(videoControls.positionX ?? 50), playhead) : 50
   const resolvedPositionY = activeVideo ? resolveVideoKeyframeValue(activeVideo, 'positionY', Number(videoControls.positionY ?? 50), playhead) : 50
   const resolvedScale = activeVideo ? resolveVideoKeyframeValue(activeVideo, 'scale', Math.max(1, Number(videoControls.scale) || 100), playhead) : 100
   const resolvedOpacity = activeVideo ? resolveVideoKeyframeValue(activeVideo, 'opacity', Number(videoControls.opacity ?? 100), playhead) : 100
+  const resolvedRotation = activeVideo ? resolveVideoKeyframeValue(activeVideo, 'rotation', Number(videoControls.rotation) || 0, playhead) : 0
   const programVideoStyle = activeVideo ? {
     left: `${resolvedPositionX}%`,
     top: `${resolvedPositionY}%`,
     width: `${Math.max(1, resolvedScale)}%`,
     height: `${Math.max(1, resolvedScale)}%`,
     opacity: Math.max(0, Math.min(1, resolvedOpacity / 100)),
-    transform: `translate(-50%, -50%) rotate(${Number(videoControls.rotation) || 0}deg)`,
+    transform: `translate(-50%, -50%) rotate(${resolvedRotation}deg)`,
     clipPath: `inset(${videoControls.cropTop || 0}% ${videoControls.cropRight || 0}% ${videoControls.cropBottom || 0}% ${videoControls.cropLeft || 0}%)`,
     objectFit: fitMode === 'Fill' ? 'cover' : fitMode === 'Stretch' ? 'fill' : 'contain',
     ...effectStyle,
@@ -1010,15 +1311,6 @@ function Monitor({ playing, setPlaying, notify, empty = false, timelineClips = [
   )
 }
 
-function OptionGrid({ title, options, onClick }) {
-  return (
-    <div className="option-panel">
-      <div className="section-label">{title}</div>
-      <input className="option-search" placeholder={`Search ${title.toLowerCase()}`} />
-      <div className="option-grid">{options.map((option) => <button key={option} onClick={() => onClick(option)}>{option}</button>)}</div>
-    </div>
-  )
-}
 
 function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, clips, setClips, commitClips, selectedClipIds, setSelectedClipIds, playhead, setPlayhead, markers, setMarkers, snapping, snapTime, toggleTrack, onClipSelect, setContextMenu, notify, pushHistory, onStockDrop, onSfxDrop, onMediaDrop }) {
   const scrollRef = useRef(null)
@@ -1220,7 +1512,9 @@ function Timeline({ height, zoom, setZoom, trackHeight, setTrackHeight, tracks, 
                     }}
                   >
                     <span className="trim-handle left" onPointerDown={(event) => startTrim(event, clip, 'left')} />
-                    {clip.thumbnail && <span className="clip-thumbnail-strip" style={{ backgroundImage: `url(${clip.thumbnail})` }} aria-hidden="true" />}
+                    {clip.type === 'video'
+                      ? <ClipVideoPreview clip={clip} frameCount={filmstripFrameCountFor(Math.max(18, clip.duration * pixelsPerSecond))} />
+                      : (clip.thumbnail && <span className="clip-image-preview" style={{ backgroundImage: `url(${clip.thumbnail})` }} aria-hidden="true" />)}
                     {!!clip.effects?.length && <span className="effect-badge">fx</span>}
                     {clip.transition && <span className="transition-badge">↔</span>}
                     {clip.video?.freezeFrame && <span className="freeze-badge">❄</span>}
