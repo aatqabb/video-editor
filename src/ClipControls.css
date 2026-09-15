@@ -43,13 +43,23 @@
 .video-preset-grid button{min-height:36px;background:#202024;border:1px solid #34343a;border-radius:3px;padding:5px;font-size:9px;line-height:1.25;color:#c7c7cc}
 .video-preset-grid button:hover{background:#2c2c31;border-color:#4d5662;color:#fff}
 
-.keyframe-hint{color:#77777f;font-size:8.5px;line-height:1.4;margin:2px 0 8px}
-.keyframe-row{border-top:1px solid #26262a;padding:6px 0}
-.keyframe-row:first-of-type{border-top:0;padding-top:0}
-.keyframe-toggle{display:flex;align-items:center;gap:6px;color:#c7c7cc;font-size:9.5px}
-.keyframe-toggle input{accent-color:#4d9be8}
-.keyframe-easing-row{display:grid;grid-template-columns:70px minmax(72px,1fr);align-items:center;gap:7px;min-height:27px;color:#9999a0;margin-top:2px}
-.keyframe-easing-row select{height:24px;background:#101012;border:1px solid #35353a;color:#ddd;border-radius:2px;padding:0 5px;font-size:9px}
+/* Per-property keyframing, Premiere-Effect-Controls style: a small diamond
+   stopwatch sits at the end of the row itself (not tucked away in its own
+   separate "Animate Over Time" section any more — Position/Scale/Rotation/
+   Opacity each keyframe right where you already edit them), and once it's
+   on, a thin mini-timeline of that property's keyframes appears underneath. */
+.keyframeable-control{padding:2px 0}
+.keyframeable-row{grid-template-columns:70px minmax(60px,1fr) 70px 18px}
+.keyframe-diamond{width:18px;height:24px;display:flex;align-items:center;justify-content:center;color:#5a5a62;flex-shrink:0}
+.keyframe-diamond svg rect{fill:none;stroke:#6b6b73;stroke-width:1.3}
+.keyframe-diamond:hover svg rect{stroke:#9c9ca3}
+.keyframe-diamond.enabled svg rect{fill:#3d5a75;stroke:#5a97cf}
+.keyframe-diamond.enabled.has-key svg rect{fill:#4d9be8;stroke:#dbeeff}
+.keyframe-strip{padding:2px 0 5px 70px}
+.keyframe-strip-track{position:relative;height:10px;background:#101012;border:1px solid #2b2b2f;border-radius:2px}
+.keyframe-strip-dot{position:absolute;top:50%;width:8px;height:8px;padding:0;background:#4d9be8;border:1px solid #dbeeff;transform:translate(-50%,-50%) rotate(45deg);border-radius:1px}
+.keyframe-strip-dot:hover{background:#6fb2f5}
+.keyframe-strip-playhead{position:absolute;top:-2px;bottom:-2px;width:1px;background:#f3c64e;transform:translateX(-50%);pointer-events:none}
 .voiceover-workspace{padding:0 7px 7px}
 .voiceover-workspace .clip-controls-heading{margin:0 -7px 8px}
 .voiceover-actions{display:grid;gap:6px}

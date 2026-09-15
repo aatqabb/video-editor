@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import './ClipControls.css'
+import { keyframeAt, removeKeyframeAt, resolveKeyframeValue, upsertKeyframe } from './keyframeMath'
 
 const defaultKeyframes = {
   positionX: { enabled: false, to: 50, easing: 'linear' },
@@ -8,13 +9,6 @@ const defaultKeyframes = {
   opacity: { enabled: false, to: 100, easing: 'linear' },
   rotation: { enabled: false, to: 0, easing: 'linear' },
 }
-
-const EASING_OPTIONS = [
-  ['linear', 'Linear'],
-  ['easeIn', 'Ease In'],
-  ['easeOut', 'Ease Out'],
-  ['easeInOut', 'Ease In-Out'],
-]
 
 const defaultVideo = {
   positionX: 50,
@@ -46,14 +40,6 @@ const VIDEO_PRESETS = [
   { name: 'Pan Right → Left', apply: (transform) => ({ positionX: 65, keyframes: { ...transform.keyframes, positionX: { enabled: true, to: 35 } } }) },
   { name: 'Fade In', apply: (transform) => ({ opacity: 0, keyframes: { ...transform.keyframes, opacity: { enabled: true, to: 100 } } }) },
   { name: 'Fade Out', apply: (transform) => ({ opacity: 100, keyframes: { ...transform.keyframes, opacity: { enabled: true, to: 0 } } }) },
-]
-
-const KEYFRAME_FIELDS = [
-  { key: 'positionX', label: 'Position X', min: 0, max: 100, step: .1, suffix: '%' },
-  { key: 'positionY', label: 'Position Y', min: 0, max: 100, step: .1, suffix: '%' },
-  { key: 'scale', label: 'Scale', min: 1, max: 400, step: 1, suffix: '%' },
-  { key: 'opacity', label: 'Opacity', min: 0, max: 100, step: 1, suffix: '%' },
-  { key: 'rotation', label: 'Rotation', min: -720, max: 720, step: 1, suffix: '°' },
 ]
 
 // Module-level so it survives switching between selected clips (a fresh copy
@@ -94,13 +80,128 @@ function NumericControl({ label, value, min, max, step = 1, suffix = '', onChang
   )
 }
 
-export function VideoControls({ clip, onUpdate, notify }) {
+// The little diamond stopwatch each animatable row gets (Position, Scale,
+// Rotation, Opacity...), matching Premiere's Effect Controls: hollow when
+// keyframing is off, filled once it's on, and a slightly different shade
+// when a keyframe sits at the exact current time vs. mid-interpolation.
+function KeyframeDiamond({ enabled, hasKeyframeHere, onClick, title }) {
+  return (
+    <button type="button" className={`keyframe-diamond ${enabled ? 'enabled' : ''} ${hasKeyframeHere ? 'has-key' : ''}`} onClick={onClick} title={title}>
+      <svg viewBox="0 0 10 10" width="10" height="10"><rect x="1.5" y="1.5" width="7" height="7" transform="rotate(45 5 5)" /></svg>
+    </button>
+  )
+}
+
+// The mini keyframe timeline under a row once it's animated — a thin bar the
+// width of the clip's own duration, with a dot per keyframe (click to jump
+// the playhead there, double-click to delete just that one keyframe) and a
+// moving marker for where the playhead is now.
+function KeyframeStrip({ points, duration, localTime, onSeek, onDelete }) {
+  const safeDuration = Math.max(0.05, duration)
+  const pct = (t) => `${Math.max(0, Math.min(100, (t / safeDuration) * 100))}%`
+  return (
+    <div className="keyframe-strip">
+      <div className="keyframe-strip-track">
+        {points.map((pt) => (
+          <button
+            key={pt.time}
+            type="button"
+            className="keyframe-strip-dot"
+            style={{ left: pct(pt.time) }}
+            onClick={() => onSeek(pt.time)}
+            onDoubleClick={(event) => { event.stopPropagation(); onDelete(pt.time) }}
+            title={`${pt.time.toFixed(2)}s — click to jump here, double-click to delete`}
+          />
+        ))}
+        <div className="keyframe-strip-playhead" style={{ left: pct(localTime) }} />
+      </div>
+    </div>
+  )
+}
+
+// A NumericControl that can be keyframed over time. When keyframing is off
+// it behaves exactly like NumericControl (edits the plain static value).
+// Once the stopwatch is on, `value` is the value AT THE CURRENT PLAYHEAD
+// (already resolved/interpolated by the caller), editing it upserts a
+// keyframe at the current time instead of changing a single static number,
+// and a mini timeline of the property's keyframes appears underneath.
+function KeyframeableControl({ label, value, min, max, step = 1, suffix = '', onChange, track, duration, localTime, onToggle, onSeek, onDeleteAt }) {
+  const enabled = Boolean(track?.enabled)
+  const hasKeyframeHere = enabled ? Boolean(keyframeAt(track, localTime)) : false
+  const title = !enabled ? `Enable keyframing for ${label}` : `Disable keyframing for ${label} (removes all its keyframes)`
+  return (
+    <div className="keyframeable-control">
+      <label className="clip-control-row keyframeable-row">
+        <span className="clip-control-label">{label}</span>
+        <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
+        <span className="clip-control-value">
+          <input className="clip-control-number" type="number" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
+          {suffix && <small>{suffix}</small>}
+        </span>
+        <KeyframeDiamond enabled={enabled} hasKeyframeHere={hasKeyframeHere} title={title} onClick={onToggle} />
+      </label>
+      {enabled && <KeyframeStrip points={track.points || []} duration={duration} localTime={localTime} onSeek={onSeek} onDelete={onDeleteAt} />}
+    </div>
+  )
+}
+
+export function VideoControls({ clip, onUpdate, notify, playhead = 0, setPlayhead = () => {} }) {
   if (!clip || clip.type !== 'video' || clip.kind === 'text') {
     return <div className="clip-controls-empty">Select a video clip on the timeline.</div>
   }
 
   const transform = { ...defaultVideo, ...(clip.video || {}) }
   const patch = (values) => onUpdate(clip.id, { video: { ...transform, ...values } })
+  const duration = Math.max(.05, Number(clip.duration) || 0)
+  const localTime = Math.max(0, Math.min(duration, playhead - clip.start))
+
+  // A KeyframeableControl for one of the five animatable properties: reads
+  // the resolved (interpolated, at the current playhead) value to display,
+  // and wires the stopwatch + slider/number edits to real multi-keyframe
+  // writes on transform.keyframes[key].
+  const keyframeField = ({ key, label, min, max, step, suffix }) => {
+    const track = transform.keyframes?.[key] || defaultKeyframes[key]
+    const staticValue = transform[key]
+    const displayValue = resolveKeyframeValue(track, staticValue, localTime, duration)
+    const setTrack = (nextTrack) => patch({ keyframes: { ...transform.keyframes, [key]: nextTrack } })
+    return (
+      <KeyframeableControl
+        key={key}
+        label={label}
+        value={displayValue}
+        min={min}
+        max={max}
+        step={step}
+        suffix={suffix}
+        duration={duration}
+        localTime={localTime}
+        onSeek={(t) => setPlayhead(clip.start + t)}
+        track={track}
+        onChange={(value) => {
+          if (!track?.enabled) { patch({ [key]: value }); return }
+          setTrack({ enabled: true, points: upsertKeyframe(track.points || [], localTime, value) })
+        }}
+        onToggle={() => {
+          // The row's stopwatch is the Adobe-style global on/off for this
+          // property: off -> on creates the first keyframe from the current
+          // value; on -> off clears every keyframe and reverts to a plain
+          // static value (matches clicking Premiere's stopwatch off, which
+          // prompts to delete all of a property's keyframes). Removing or
+          // adding an INDIVIDUAL keyframe elsewhere in time happens by
+          // editing the value at that time, or double-clicking its dot.
+          if (!track?.enabled) {
+            setTrack({ enabled: true, points: upsertKeyframe([], localTime, displayValue) })
+          } else {
+            patch({ [key]: displayValue, keyframes: { ...transform.keyframes, [key]: { enabled: false, points: [] } } })
+          }
+        }}
+        onDeleteAt={(time) => {
+          const nextPoints = removeKeyframeAt(track.points || [], time)
+          setTrack(nextPoints.length ? { enabled: true, points: nextPoints } : { enabled: false, points: [] })
+        }}
+      />
+    )
+  }
 
   return (
     <div className="clip-controls-panel effect-controls-panel">
@@ -117,11 +218,11 @@ export function VideoControls({ clip, onUpdate, notify }) {
         </div>
       </EffectSection>
 
-      <EffectSection title="Motion" hint="Transform" onReset={() => patch({ positionX: 50, positionY: 50, scale: 100, rotation: 0 })}>
-        <NumericControl label="Position X" value={transform.positionX} min={0} max={100} step={0.1} suffix="%" onChange={(value) => patch({ positionX: value })} />
-        <NumericControl label="Position Y" value={transform.positionY} min={0} max={100} step={0.1} suffix="%" onChange={(value) => patch({ positionY: value })} />
-        <NumericControl label="Scale" value={transform.scale} min={1} max={400} step={1} suffix="%" onChange={(value) => patch({ scale: value })} />
-        <NumericControl label="Rotation" value={transform.rotation} min={-180} max={180} step={1} suffix="°" onChange={(value) => patch({ rotation: value })} />
+      <EffectSection title="Motion" hint="Transform — ◇ to keyframe" onReset={() => patch({ positionX: 50, positionY: 50, scale: 100, rotation: 0, keyframes: { ...transform.keyframes, positionX: defaultKeyframes.positionX, positionY: defaultKeyframes.positionY, scale: defaultKeyframes.scale, rotation: defaultKeyframes.rotation } })}>
+        {keyframeField({ key: 'positionX', label: 'Position X', min: 0, max: 100, step: .1, suffix: '%' })}
+        {keyframeField({ key: 'positionY', label: 'Position Y', min: 0, max: 100, step: .1, suffix: '%' })}
+        {keyframeField({ key: 'scale', label: 'Scale', min: 1, max: 400, step: 1, suffix: '%' })}
+        {keyframeField({ key: 'rotation', label: 'Rotation', min: -180, max: 180, step: 1, suffix: '°' })}
         <div className="effect-quick-row">
           <button onClick={() => patch({ positionX: 50, positionY: 50 })}>Center</button>
           <button onClick={() => patch({ scale: 100 })}>100%</button>
@@ -129,8 +230,8 @@ export function VideoControls({ clip, onUpdate, notify }) {
         </div>
       </EffectSection>
 
-      <EffectSection title="Opacity" hint="Compositing" onReset={() => patch({ opacity: 100 })}>
-        <NumericControl label="Opacity" value={transform.opacity} min={0} max={100} step={1} suffix="%" onChange={(value) => patch({ opacity: value })} />
+      <EffectSection title="Opacity" hint="Compositing — ◇ to keyframe" onReset={() => patch({ opacity: 100, keyframes: { ...transform.keyframes, opacity: defaultKeyframes.opacity } })}>
+        {keyframeField({ key: 'opacity', label: 'Opacity', min: 0, max: 100, step: 1, suffix: '%' })}
         <div className="effect-quick-row">
           {[25, 50, 75, 100].map((value) => <button key={value} className={transform.opacity === value ? 'active' : ''} onClick={() => patch({ opacity: value })}>{value}%</button>)}
         </div>
@@ -141,52 +242,6 @@ export function VideoControls({ clip, onUpdate, notify }) {
         <NumericControl label="Tint" value={transform.tint} min={-100} max={100} step={1} onChange={(value) => patch({ tint: value })} />
         <NumericControl label="Vibrance" value={transform.vibrance} min={-100} max={100} step={1} onChange={(value) => patch({ vibrance: value })} />
         <p className="color-grade-hint">Temperature: cool ↔ warm. Tint: green ↔ magenta. Vibrance boosts muted colors without blowing out ones already vivid.</p>
-      </EffectSection>
-
-      <EffectSection
-        title="Animate Over Time"
-        hint="Keyframes"
-        defaultOpen={false}
-        onReset={() => patch({ keyframes: { ...defaultKeyframes } })}
-      >
-        <p className="keyframe-hint">Static value upar wale controls se set hoti hai — yahan sirf "end value" do, clip ke start se end tak automatically animate ho jayega (preview aur final export dono mein).</p>
-        {KEYFRAME_FIELDS.map(({ key, label, min, max, step, suffix }) => {
-          const keyframe = transform.keyframes?.[key] || defaultKeyframes[key]
-          return (
-            <div className="keyframe-row" key={key}>
-              <label className="keyframe-toggle">
-                <input
-                  type="checkbox"
-                  checked={!!keyframe.enabled}
-                  onChange={(event) => patch({ keyframes: { ...transform.keyframes, [key]: { ...keyframe, enabled: event.target.checked } } })}
-                />
-                Animate {label}
-              </label>
-              {keyframe.enabled && (
-                <>
-                  <NumericControl
-                    label={`${label} end value`}
-                    value={keyframe.to}
-                    min={min}
-                    max={max}
-                    step={step}
-                    suffix={suffix}
-                    onChange={(value) => patch({ keyframes: { ...transform.keyframes, [key]: { ...keyframe, to: value } } })}
-                  />
-                  <label className="keyframe-easing-row">
-                    <span className="clip-control-label">Easing</span>
-                    <select
-                      value={keyframe.easing || 'linear'}
-                      onChange={(event) => patch({ keyframes: { ...transform.keyframes, [key]: { ...keyframe, easing: event.target.value } } })}
-                    >
-                      {EASING_OPTIONS.map(([value, optLabel]) => <option key={value} value={value}>{optLabel}</option>)}
-                    </select>
-                  </label>
-                </>
-              )}
-            </div>
-          )
-        })}
       </EffectSection>
 
       <EffectSection title="Crop" hint="Edges" onReset={() => patch({ cropTop: 0, cropRight: 0, cropBottom: 0, cropLeft: 0 })} defaultOpen={false}>

@@ -11,6 +11,7 @@ import ProjectWorkspace from './ProjectWorkspace'
 import MediaLibrary from './MediaLibrary'
 import ExportWorkspace from './ExportWorkspace'
 import { buildProjectDocument, clearAutosave, getRecentProjects, readAutosave, readProjectFile, rememberProject, saveProjectFile, writeAutosave } from './projectPersistence'
+import { resolveKeyframeValue } from './keyframeMath'
 
 // Kept flat (not split into primary/more) since these two lists are the
 // single source of truth for which tab shows which panel further down.
@@ -179,24 +180,11 @@ function getTextOverlayPresentation(clip, playhead) {
   }
 }
 
-// Same easing curves offered in the Effect Controls keyframe UI, applied to
-// the raw 0..1 progress before interpolating — 'linear' keeps the original
-// straight-line behavior, the others reuse the same smoothstep-family math
-// already trusted elsewhere in this app (e.g. transition zoom easing).
-function applyKeyframeEasing(progress, easing) {
-  const p = Math.max(0, Math.min(1, progress))
-  if (easing === 'easeIn') return p * p
-  if (easing === 'easeOut') return 1 - (1 - p) * (1 - p)
-  if (easing === 'easeInOut') return p * p * (3 - 2 * p)
-  return p
-}
-
 function resolveVideoKeyframeValue(clip, key, baseValue, playhead) {
   const keyframe = clip?.video?.keyframes?.[key]
-  if (!keyframe?.enabled) return baseValue
   const duration = Math.max(.05, Number(clip.duration) || 0)
-  const progress = applyKeyframeEasing(Math.max(0, Math.min(1, (playhead - clip.start) / duration)), keyframe.easing)
-  return baseValue + (Number(keyframe.to) - baseValue) * progress
+  const localTime = playhead - clip.start
+  return resolveKeyframeValue(keyframe, baseValue, localTime, duration)
 }
 
 // Real per-frame video preview for timeline clips, instead of one repeated
@@ -1047,7 +1035,7 @@ function App() {
 
     if (leftTab === 'Effect Controls') {
       if (selectedClip?.type === 'audio') return <AudioControls clip={selectedClip} onUpdate={updateClipControls} />
-      return <VideoControls clip={selectedClip} onUpdate={updateClipControls} notify={notify} />
+      return <VideoControls clip={selectedClip} onUpdate={updateClipControls} notify={notify} playhead={playhead} setPlayhead={setPlayhead} />
     }
 
     if (leftTab === 'Project') {
@@ -1093,7 +1081,7 @@ function App() {
       return <TextWorkspace selectedTextClip={selectedTextClip} onAddText={addTextLayer} onUpdateText={updateTextLayer} notify={notify} />
     }
 
-    return <VideoControls clip={selectedClip} onUpdate={updateClipControls} notify={notify} />
+    return <VideoControls clip={selectedClip} onUpdate={updateClipControls} notify={notify} playhead={playhead} setPlayhead={setPlayhead} />
   }
 
   const renderCenterBody = () => {
