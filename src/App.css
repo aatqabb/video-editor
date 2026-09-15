@@ -131,10 +131,21 @@ input,textarea,select{user-select:text}
 .clip-video-filmstrip-frame{flex:1 1 0;min-width:0;background-repeat:no-repeat;background-position:center;background-size:cover;background-color:rgba(0,0,0,.18)}
 .clip-video-filmstrip-frame+.clip-video-filmstrip-frame{border-left:1px solid rgba(0,0,0,.35)}
 .clip-image-preview{position:absolute;left:0;right:0;bottom:0;top:14px;z-index:0;background-repeat:no-repeat;background-position:center;background-size:cover;pointer-events:none;opacity:.92}
-.trim-handle{position:absolute;top:0;bottom:0;width:7px;z-index:5;cursor:ew-resize}
+/* The old handle was a 7px-wide fully-transparent hit zone that only ever
+   showed itself as a flat, full-height translucent wash — and only once the
+   clip was already selected. There was nothing to actually see or grab: no
+   hover feedback, no distinct "this is a handle" shape, just an edge you had
+   to already know was there. This gives it the small pill-shaped grip mark a
+   real NLE's trim handle has — invisible at rest, a faint hint on hover
+   (works even before selecting), solid and bright once selected, so it reads
+   as an actual control instead of a stray strip of color at the clip edge. */
+.trim-handle{position:absolute;top:0;bottom:0;width:7px;z-index:5;cursor:ew-resize;display:flex;align-items:center;justify-content:center}
 .trim-handle.left{left:0}
 .trim-handle.right{right:0}
-.timeline-clip.selected .trim-handle{background:rgba(255,255,255,.08)}
+.trim-handle::after{content:'';width:3px;height:16px;border-radius:2px;background:#fff;opacity:0;transition:opacity .12s ease}
+.timeline-clip:hover .trim-handle::after{opacity:.35}
+.timeline-clip.selected .trim-handle::after{opacity:.9;background:#dbeeff}
+.timeline-clip.selected .trim-handle:hover::after{opacity:1}
 .waveform-faux{position:absolute;left:7px;right:7px;bottom:3px;height:42%;opacity:.35;background:repeating-linear-gradient(90deg,rgba(255,255,255,.9) 0 1px,transparent 1px 4px);mask-image:linear-gradient(to bottom,transparent 0,#000 25%,#000 75%,transparent 100%);pointer-events:none}
 
 .statusbar{height:19px;display:flex;align-items:center;gap:12px;padding:0 8px;background:#0f0f11;border-top:1px solid #29292d;color:#7e7e85;font-size:9px;flex-shrink:0}
