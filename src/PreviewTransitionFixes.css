@@ -17,7 +17,20 @@
 .track-control button[aria-pressed="true"]{background:#5b2630!important;color:#fff!important}
 .track-control .track-visibility-toggle[aria-pressed="true"]{background:#3c2025!important}
 
-.transition-badge{position:absolute;left:0;top:0;bottom:0;z-index:6;display:flex;align-items:center;justify-content:center;min-width:14px;max-width:45%;overflow:hidden;pointer-events:none;border-right:2px solid rgba(255,255,255,.9);background:repeating-linear-gradient(135deg,rgba(255,255,255,.38) 0 3px,rgba(0,0,0,.25) 3px 6px);box-shadow:inset -1px 0 rgba(0,0,0,.45)}
-.transition-badge:before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#fff;opacity:.88}
-.transition-badge-icon{font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px #000;line-height:1}
+/* Premiere gives Lock/Mute/Solo distinct colors instead of one generic
+   "active" blue. Button order in the markup is fixed (lock, delete, then
+   either the visibility toggle or mute+solo), so nth-of-type reliably
+   targets each role without needing a JS/markup change. */
+.track-control button:nth-of-type(1).on{background:#8a5a1f!important;color:#ffe1b0!important}
+.track-control button:nth-of-type(3).on{background:#7d2430!important;color:#ffd0d6!important}
+.track-control button:nth-of-type(4).on{background:#8a7a1f!important;color:#fff2b0!important}
+
+/* Scoped to .timeline-clip so this wins over the older, simpler corner-tag
+   .transition-badge rule in CreativePanels.css regardless of CSS import
+   order (both are single-class selectors otherwise, so source order would
+   decide it, which is unreliable) — this diagonal-hatched edge indicator
+   is the intended Premiere-style replacement for that older badge. */
+.timeline-clip .transition-badge{position:absolute;left:0;top:0;bottom:0;right:auto;z-index:6;display:flex;align-items:center;justify-content:center;min-width:14px;max-width:45%;overflow:hidden;pointer-events:none;border-right:2px solid rgba(255,255,255,.9);background:repeating-linear-gradient(135deg,rgba(255,255,255,.38) 0 3px,rgba(0,0,0,.25) 3px 6px);box-shadow:inset -1px 0 rgba(0,0,0,.45)}
+.timeline-clip .transition-badge:before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#fff;opacity:.88}
+.timeline-clip .transition-badge-icon{font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px #000;line-height:1}
 .timeline-clip.selected .transition-badge{outline:1px solid rgba(255,255,255,.88);outline-offset:-1px}

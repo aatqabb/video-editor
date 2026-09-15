@@ -2,11 +2,19 @@ import { useRef, useState } from 'react'
 import './ClipControls.css'
 
 const defaultKeyframes = {
-  positionX: { enabled: false, to: 50 },
-  positionY: { enabled: false, to: 50 },
-  scale: { enabled: false, to: 100 },
-  opacity: { enabled: false, to: 100 },
+  positionX: { enabled: false, to: 50, easing: 'linear' },
+  positionY: { enabled: false, to: 50, easing: 'linear' },
+  scale: { enabled: false, to: 100, easing: 'linear' },
+  opacity: { enabled: false, to: 100, easing: 'linear' },
+  rotation: { enabled: false, to: 0, easing: 'linear' },
 }
+
+const EASING_OPTIONS = [
+  ['linear', 'Linear'],
+  ['easeIn', 'Ease In'],
+  ['easeOut', 'Ease Out'],
+  ['easeInOut', 'Ease In-Out'],
+]
 
 const defaultVideo = {
   positionX: 50,
@@ -21,6 +29,9 @@ const defaultVideo = {
   fitMode: 'Fit',
   speed: 1,
   freezeFrame: false,
+  temperature: 0,
+  tint: 0,
+  vibrance: 0,
   keyframes: defaultKeyframes,
 }
 
@@ -42,6 +53,7 @@ const KEYFRAME_FIELDS = [
   { key: 'positionY', label: 'Position Y', min: 0, max: 100, step: .1, suffix: '%' },
   { key: 'scale', label: 'Scale', min: 1, max: 400, step: 1, suffix: '%' },
   { key: 'opacity', label: 'Opacity', min: 0, max: 100, step: 1, suffix: '%' },
+  { key: 'rotation', label: 'Rotation', min: -720, max: 720, step: 1, suffix: '°' },
 ]
 
 // Module-level so it survives switching between selected clips (a fresh copy
@@ -124,6 +136,13 @@ export function VideoControls({ clip, onUpdate, notify }) {
         </div>
       </EffectSection>
 
+      <EffectSection title="Color" hint="Grading" defaultOpen={false} onReset={() => patch({ temperature: 0, tint: 0, vibrance: 0 })}>
+        <NumericControl label="Temperature" value={transform.temperature} min={-100} max={100} step={1} onChange={(value) => patch({ temperature: value })} />
+        <NumericControl label="Tint" value={transform.tint} min={-100} max={100} step={1} onChange={(value) => patch({ tint: value })} />
+        <NumericControl label="Vibrance" value={transform.vibrance} min={-100} max={100} step={1} onChange={(value) => patch({ vibrance: value })} />
+        <p className="color-grade-hint">Temperature: cool ↔ warm. Tint: green ↔ magenta. Vibrance boosts muted colors without blowing out ones already vivid.</p>
+      </EffectSection>
+
       <EffectSection
         title="Animate Over Time"
         hint="Keyframes"
@@ -144,15 +163,26 @@ export function VideoControls({ clip, onUpdate, notify }) {
                 Animate {label}
               </label>
               {keyframe.enabled && (
-                <NumericControl
-                  label={`${label} end value`}
-                  value={keyframe.to}
-                  min={min}
-                  max={max}
-                  step={step}
-                  suffix={suffix}
-                  onChange={(value) => patch({ keyframes: { ...transform.keyframes, [key]: { ...keyframe, to: value } } })}
-                />
+                <>
+                  <NumericControl
+                    label={`${label} end value`}
+                    value={keyframe.to}
+                    min={min}
+                    max={max}
+                    step={step}
+                    suffix={suffix}
+                    onChange={(value) => patch({ keyframes: { ...transform.keyframes, [key]: { ...keyframe, to: value } } })}
+                  />
+                  <label className="keyframe-easing-row">
+                    <span className="clip-control-label">Easing</span>
+                    <select
+                      value={keyframe.easing || 'linear'}
+                      onChange={(event) => patch({ keyframes: { ...transform.keyframes, [key]: { ...keyframe, easing: event.target.value } } })}
+                    >
+                      {EASING_OPTIONS.map(([value, optLabel]) => <option key={value} value={value}>{optLabel}</option>)}
+                    </select>
+                  </label>
+                </>
               )}
             </div>
           )
@@ -240,14 +270,25 @@ export function VoiceoverWorkspace({ onAddAudio, notify }) {
       chunksRef.current = []
       startedAtRef.current = Date.now()
       recorder.addEventListener('dataavailable', (event) => event.data.size && chunksRef.current.push(event.data))
-      recorder.addEventListener('stop', () => {
+      recorder.addEventListener('stop', async () => {
         const duration = Math.max(0.2, (Date.now() - startedAtRef.current) / 1000)
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
         const url = URL.createObjectURL(blob)
-        onAddAudio({ id: `voiceover-${Date.now()}`, name: `Voiceover ${new Date().toLocaleTimeString()}`, duration, url, kind: 'voiceover' }, 'A1')
+        // A MediaRecorder blob has no real file on disk (unlike a picked
+        // file), so it has no path export could ever use — write it out via
+        // the same desktop:save-temp-media bridge already in main.cjs (it
+        // existed but was never wired up to the renderer before this fix).
+        let sourcePath = ''
+        if (window.videoEditorDesktop?.saveTempMedia) {
+          try {
+            const bytes = await blob.arrayBuffer()
+            sourcePath = await window.videoEditorDesktop.saveTempMedia(bytes, 'webm') || ''
+          } catch { /* falls back to preview-only below */ }
+        }
+        onAddAudio({ id: `voiceover-${Date.now()}`, name: `Voiceover ${new Date().toLocaleTimeString()}`, duration, url, sourcePath, kind: 'voiceover' }, 'A1')
         stream.getTracks().forEach((track) => track.stop())
         setRecording(false)
-        notify('Voice-over added to timeline')
+        notify(sourcePath ? 'Voice-over added to timeline' : 'Voice-over added — preview only, will be skipped in export')
       }, { once: true })
       recorder.start()
       recorderRef.current = recorder
@@ -265,10 +306,14 @@ export function VoiceoverWorkspace({ onAddAudio, notify }) {
   const importAudio = (file, kind = 'music') => {
     if (!file) return
     const url = URL.createObjectURL(file)
+    // A blob: URL only works for the live preview — export needs a real
+    // filesystem path, captured here the same way custom fonts/media already
+    // do (webUtils.getPathForFile via the desktop bridge).
+    const sourcePath = window.videoEditorDesktop?.getPathForFile?.(file) || ''
     const audio = new Audio(url)
     audio.addEventListener('loadedmetadata', () => {
-      onAddAudio({ id: `${kind}-${Date.now()}`, name: file.name, duration: Number.isFinite(audio.duration) ? audio.duration : 5, url, kind }, kind === 'music' ? 'A2' : 'A1')
-      notify(`${file.name} added to timeline`)
+      onAddAudio({ id: `${kind}-${Date.now()}`, name: file.name, duration: Number.isFinite(audio.duration) ? audio.duration : 5, url, sourcePath, kind }, kind === 'music' ? 'A2' : 'A1')
+      notify(sourcePath ? `${file.name} added to timeline` : `${file.name} added — preview only, will be skipped in export`)
     }, { once: true })
     audio.addEventListener('error', () => notify('Could not read that audio file'), { once: true })
   }

@@ -7,6 +7,18 @@ const AI_MODEL_OPTIONS = [
   { id: 'Xenova/whisper-tiny', label: 'Tiny (faster, smaller ~75MB download, less accurate)' },
 ]
 
+const POSITION_PRESETS = [
+  { label: '↖', x: 10, y: 12 }, { label: '↑', x: 50, y: 12 }, { label: '↗', x: 90, y: 12 },
+  { label: '←', x: 10, y: 50 }, { label: '•', x: 50, y: 50 }, { label: '→', x: 90, y: 50 },
+  { label: '↙', x: 10, y: 88 }, { label: '↓', x: 50, y: 88 }, { label: '↘', x: 90, y: 88 },
+]
+
+const DISPLAY_MODES = [
+  { id: 'paragraph', label: 'Paragraph (wraps)' },
+  { id: 'single', label: 'Single line' },
+  { id: 'word', label: 'Word-by-word' },
+]
+
 export default function CaptionWorkspace({ notify, onAddCaptions }) {
   const [mediaUrl, setMediaUrl] = useState(null)
   const [mediaFile, setMediaFile] = useState(null)
@@ -19,6 +31,14 @@ export default function CaptionWorkspace({ notify, onAddCaptions }) {
   const [aiModel, setAiModel] = useState(AI_MODEL_OPTIONS[0].id)
   const [aiStatus, setAiStatus] = useState('')
   const [aiBusy, setAiBusy] = useState(false)
+
+  const [displayMode, setDisplayMode] = useState('paragraph')
+  const [fontSize, setFontSize] = useState(40)
+  const [textColor, setTextColor] = useState('#ffffff')
+  const [showBackground, setShowBackground] = useState(true)
+  const [backgroundColor, setBackgroundColor] = useState('#000000')
+  const [align, setAlign] = useState('center')
+  const [position, setPosition] = useState({ x: 50, y: 88 })
 
   const fileInputRef = useRef(null)
   const mediaRef = useRef(null)
@@ -112,7 +132,20 @@ export default function CaptionWorkspace({ notify, onAddCaptions }) {
   const addToTimeline = () => {
     if (!segments.length) return notify('Add at least one caption first')
     if (!onAddCaptions) return notify('Cannot add captions from here')
-    onAddCaptions(segments)
+    const outgoing = displayMode === 'word' ? segments.flatMap((segment) => splitSegmentIntoChunks(segment, 1)) : segments
+    const style = {
+      fontSize,
+      color: textColor,
+      background: showBackground ? `${backgroundColor}b3` : '#00000000',
+      align,
+      x: position.x,
+      y: position.y,
+      wrap: displayMode === 'paragraph',
+      animationIn: 'Fade In',
+      animationOut: 'Fade Out',
+      animationDuration: .3,
+    }
+    onAddCaptions(outgoing, style)
   }
 
   const totalDuration = mediaRef.current?.duration || 0
@@ -233,6 +266,48 @@ export default function CaptionWorkspace({ notify, onAddCaptions }) {
 
         {!!segments.length && (
           <>
+            <div className="caption-style-box">
+              <div className="caption-style-row">
+                <span className="caption-style-label">Display</span>
+                <div className="caption-mode-row">
+                  {DISPLAY_MODES.map((mode) => (
+                    <button key={mode.id} className={displayMode === mode.id ? 'active' : ''} onClick={() => setDisplayMode(mode.id)}>{mode.label}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="caption-style-row">
+                <span className="caption-style-label">Position</span>
+                <div className="caption-position-grid">
+                  {POSITION_PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      className={position.x === preset.x && position.y === preset.y ? 'active' : ''}
+                      onClick={() => setPosition({ x: preset.x, y: preset.y })}
+                    >{preset.label}</button>
+                  ))}
+                </div>
+                <div className="caption-position-fine">
+                  <label>X<input type="number" min="0" max="100" value={position.x} onChange={(event) => setPosition((current) => ({ ...current, x: Number(event.target.value) }))} /></label>
+                  <label>Y<input type="number" min="0" max="100" value={position.y} onChange={(event) => setPosition((current) => ({ ...current, y: Number(event.target.value) }))} /></label>
+                </div>
+              </div>
+
+              <div className="caption-style-row">
+                <span className="caption-style-label">Text</span>
+                <input className="number-input" type="number" min="12" max="160" value={fontSize} onChange={(event) => setFontSize(Number(event.target.value))} title="Font size" />
+                <div className="caption-align-row">
+                  {['left', 'center', 'right'].map((value) => (
+                    <button key={value} className={align === value ? 'active' : ''} onClick={() => setAlign(value)}>{value[0].toUpperCase()}</button>
+                  ))}
+                </div>
+                <label className="color-control">Text <input type="color" value={textColor} onChange={(event) => setTextColor(event.target.value)} /></label>
+                <label className="caption-bg-toggle"><input type="checkbox" checked={showBackground} onChange={(event) => setShowBackground(event.target.checked)} /> Background</label>
+                {showBackground && <label className="color-control">BG <input type="color" value={backgroundColor} onChange={(event) => setBackgroundColor(event.target.value)} /></label>}
+              </div>
+              <small className="caption-style-hint">Ye style "Add Captions to Timeline" se banne wali sab caption clips par lagegi — export ki hui video mein bhi burn-in hogi.</small>
+            </div>
+
             <div className="caption-list-toolbar">
               <strong>{segments.length} caption{segments.length === 1 ? '' : 's'}</strong>
               <button onClick={addBlankSegment}>+ Blank Segment</button>
