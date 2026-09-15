@@ -659,11 +659,16 @@ function App() {
     notify(`Text layer added to ${track.id}`)
   }
 
-  const updateTextLayer = (id, draft) => {
+  // `silent` is used by the Text panel's live-editing (every field change
+  // while a clip is selected, not just the old "Apply to Selected" button)
+  // so dragging a color swatch or nudging a font-size stepper doesn't spam a
+  // notification for every intermediate value the way one explicit Apply
+  // click deserves to.
+  const updateTextLayer = (id, draft, { silent = false } = {}) => {
     commitClips((current) => current.map((clip) => clip.id === id ? {
       ...clip, name: draft.text || clip.name, text: draft.text || clip.text, duration: Math.max(.5, Number(draft.duration) || clip.duration), textStyle: { ...draft },
     } : clip))
-    notify('Text layer updated')
+    if (!silent) notify('Text layer updated')
   }
 
   const applyTransition = (type, duration) => {

@@ -69,6 +69,17 @@ export function TextWorkspace({ selectedTextClip, onAddText, onUpdateText, notif
     x, y, animationIn, animationOut, animationDuration, duration, fontFilePath: customFontPaths[fontFamily] || null,
   }
 
+  // Id of the clip these fields currently reflect, set synchronously inside
+  // the sync effect below (not inside the live-update effect) — this is
+  // what tells the live-update effect below whether it's allowed to write
+  // back yet. A "skip the next tick" boolean flag doesn't work here: when a
+  // freshly-created clip is selected, its fields already match the just-used
+  // draft, so the sync effect's setState calls are no-ops that never
+  // actually re-trigger the live-update effect — meaning a flag meant to be
+  // "consumed" by that effect would instead sit there and swallow the
+  // user's very first real edit on the NEXT field change instead.
+  const syncedClipIdRef = useRef(null)
+
   // Without this, the form kept showing whatever was last typed/picked
   // locally instead of the clip you just clicked — so re-selecting an
   // existing caption/lower-third to change its color showed a stale color,
@@ -78,6 +89,7 @@ export function TextWorkspace({ selectedTextClip, onAddText, onUpdateText, notif
   // selection actually changes, not on every keystroke while editing it.
   useEffect(() => {
     if (!selectedTextClip) return
+    syncedClipIdRef.current = selectedTextClip.id
     const style = selectedTextClip.textStyle || {}
     const bg = style.background || '#00000000'
     const hasBackground = bg !== '#00000000' && bg !== 'transparent'
@@ -101,6 +113,29 @@ export function TextWorkspace({ selectedTextClip, onAddText, onUpdateText, notif
     if (style.fontFilePath) setCustomFontPaths((paths) => ({ ...paths, [style.fontFamily]: style.fontFilePath }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTextClip?.id])
+
+  // Real live editing: previously every field here only ever touched local
+  // draft state, and none of it reached the actual selected clip until you
+  // pressed "Apply to Selected" — so changing color, size, position or
+  // animation on an existing caption/lower-third silently did nothing until
+  // that click, which read as "color/size can't be changed" or "I set
+  // Animation to None but it still animates" (the clip's real textStyle
+  // never changed). Now any field change while a clip is selected pushes a
+  // (debounced, silent) update straight to that clip, matching how Adobe's
+  // Properties panel behaves — "Apply to Selected" still works too, for
+  // parity, but is no longer required.
+  useEffect(() => {
+    if (!selectedTextClip) return
+    if (syncedClipIdRef.current !== selectedTextClip.id) return
+    const timer = setTimeout(() => {
+      onUpdateText(selectedTextClip.id, draft, { silent: true })
+    }, 120)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    text, fontFamily, fontSize, color, background, showBackground, align, bold, italic, underline, wrap,
+    x, y, animationIn, animationOut, animationDuration, duration,
+  ])
 
   const loadPcFonts = async () => {
     if (!window.queryLocalFonts) return notify('This browser does not expose installed fonts; common fonts are available')
@@ -150,7 +185,7 @@ export function TextWorkspace({ selectedTextClip, onAddText, onUpdateText, notif
 
   return (
     <div className="creative-panel text-workspace">
-      <div className="creative-heading"><strong>TEXT</strong><span>{selectedTextClip ? 'Editing selected text' : 'New text layer'}</span></div>
+      <div className="creative-heading"><strong>TEXT</strong><span>{selectedTextClip ? 'Editing selected text — changes apply live' : 'New text layer'}</span></div>
 
       <span className="creative-section-label">Quick style presets</span>
       <div className="text-preset-row">{TEXT_PRESETS.map((preset) => <button key={preset.name} onClick={() => applyPreset(preset)}>{preset.name}</button>)}</div>
